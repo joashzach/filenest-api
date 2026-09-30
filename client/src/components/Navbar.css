@@ -1,0 +1,53 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--carbon);
+  border-bottom: 1px solid transparent;
+  transition: background-color var(--transition-base), border-color var(--transition-base), backdrop-filter var(--transition-base);
+}
+
+.navbar.navbar--scrolled {
+  background: rgba(16, 16, 16, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom-color: var(--graphite);
+}
+
+.navbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.navbar-brand {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--chalk);
+  letter-spacing: -0.3px;
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar-signup-btn {
+  font-size: 13px;
+  padding: 8px 20px;
+}
+
+@media (max-width: 480px) {
+  .navbar-inner {
+    height: 56px;
+  }
+  .navbar-brand {
+    font-size: 18px;
+  }
+  .navbar-signup-btn {
+    padding: 6px 16px;
+    font-size: 12px;
+  }
+}

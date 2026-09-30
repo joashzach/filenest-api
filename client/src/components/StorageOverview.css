@@ -1,0 +1,209 @@
+.storage-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+}
+
+.storage-header-card {
+  background-color: #141416;
+  border: 1px solid #202124;
+  border-radius: 8px;
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.storage-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.storage-header-icon {
+  color: #85878c;
+  flex-shrink: 0;
+}
+
+.storage-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: #ececed;
+  margin: 0;
+}
+
+.storage-subtitle {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  color: #6e7076;
+  margin: 3px 0 0 0;
+}
+
+.storage-header-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.storage-stat-num {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  color: #ececed;
+  font-variant-numeric: tabular-nums;
+}
+
+.storage-stat-label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12.5px;
+  color: #6e7076;
+}
+
+.storage-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.storage-cat-card {
+  background-color: #141416;
+  border: 1px solid #202124;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.storage-cat-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.storage-cat-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ececed;
+}
+
+.storage-cat-count {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12.5px;
+  color: #6e7076;
+  font-variant-numeric: tabular-nums;
+}
+
+.storage-cat-bottom {
+  display: flex;
+  align-items: baseline;
+}
+
+.storage-cat-size {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #ececed;
+  font-variant-numeric: tabular-nums;
+}
+
+.storage-largest-section {
+  background-color: #141416;
+  border: 1px solid #202124;
+  border-radius: 8px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.storage-section-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: #ececed;
+  margin: 0;
+}
+
+.storage-largest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.storage-largest-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 6px;
+  transition: background-color 150ms ease;
+}
+
+.storage-largest-row:hover {
+  background-color: #18191b;
+}
+
+.storage-largest-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.storage-file-icon {
+  color: #85878c;
+  flex-shrink: 0;
+}
+
+.storage-largest-name {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  color: #ececed;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.storage-largest-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.storage-largest-size {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12.5px;
+  color: #9a9ca1;
+  font-variant-numeric: tabular-nums;
+}
+
+.storage-action-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #85878c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.storage-action-btn:hover {
+  color: #ececed;
+  background-color: #202124;
+}
+
+.storage-action-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

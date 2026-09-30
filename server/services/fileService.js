@@ -28,6 +28,35 @@ exports.confirmUploadService = async (fileData, userId) => {
   return file;
 }
 
+const EXT_MIME_MAP = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  pdf: 'application/pdf',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  csv: 'text/csv',
+  json: 'application/json',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  m4a: 'audio/mp4',
+};
+
+function resolveContentType(originalName, storedMime) {
+  const ext = (originalName || '').split('.').pop().toLowerCase();
+  const mapped = EXT_MIME_MAP[ext];
+  if (!storedMime || storedMime === 'application/octet-stream' || storedMime === 'binary/octet-stream') {
+    return mapped || storedMime || 'application/octet-stream';
+  }
+  return storedMime;
+}
+
 // GENERATE DOWNLOAD URL SERVICE
 exports.generateDownloadUrlService = async (fileId, userId) => {
   const file = await File.findById(fileId);
@@ -40,7 +69,8 @@ exports.generateDownloadUrlService = async (fileId, userId) => {
     throw new ApiError("You do not have permission to access this file!", 403);
   }
 
-  const downloadUrl = await generateDownloadUrl(file.key);
+  const contentType = resolveContentType(file.originalName, file.mimeType);
+  const downloadUrl = await generateDownloadUrl(file.key, contentType);
 
   return downloadUrl;
 }

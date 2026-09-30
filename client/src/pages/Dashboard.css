@@ -1,0 +1,322 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+/* Dashboard Layout */
+.dash-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #0c0c0d;
+  color: #ececed;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dash-layout *,
+.dash-layout *::before,
+.dash-layout *::after {
+  box-sizing: border-box;
+}
+
+/* Accessible focus visible outline on all controls */
+.dash-layout button:focus-visible,
+.dash-layout input:focus-visible,
+.dash-layout select:focus-visible,
+.dash-layout [tabindex]:focus-visible {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+}
+
+.dash-body {
+  display: flex;
+  flex: 1;
+  min-height: calc(100vh - 60px);
+  position: relative;
+  width: 100%;
+}
+
+.dash-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: #0c0c0d;
+}
+
+.dash-content-inner {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 26px 32px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Header Toolbar */
+.dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #202124;
+  flex-shrink: 0;
+}
+
+.dash-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.dash-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: #ececed;
+  margin: 0;
+  letter-spacing: -0.2px;
+  line-height: 1.2;
+}
+
+.dash-count {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #6e7076;
+  white-space: nowrap;
+}
+
+.dash-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* View toggle */
+.dash-view-toggle {
+  display: flex;
+  align-items: center;
+  background-color: transparent;
+  gap: 3px;
+}
+
+.dash-view-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: #85878c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 120ms ease;
+  padding: 0;
+}
+
+.dash-view-btn:hover {
+  color: #ececed;
+  background-color: #18191b;
+}
+
+.dash-view-btn--active {
+  background-color: #141416;
+  border-color: #202124;
+  color: #ececed;
+}
+
+/* Sort dropdown */
+.dash-sort-container {
+  position: relative;
+}
+
+.dash-sort-btn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #202124;
+  background-color: #141416;
+  color: #ececed;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.dash-sort-btn:hover {
+  background-color: #18191b;
+  border-color: #26272a;
+}
+
+.dash-sort-chevron {
+  color: #85878c;
+  flex-shrink: 0;
+}
+
+.dash-sort-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  width: 160px;
+  background-color: #141416;
+  border: 1px solid #202124;
+  border-radius: 8px;
+  padding: 5px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-sort-item {
+  width: 100%;
+  padding: 7px 11px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  color: #9a9ca1;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.dash-sort-item:hover {
+  background-color: #18191b;
+  color: #ececed;
+}
+
+.dash-sort-item--active {
+  color: #ececed;
+  font-weight: 500;
+}
+
+/* Refresh button */
+.dash-refresh-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #202124;
+  background-color: #141416;
+  color: #85878c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 120ms ease;
+  padding: 0;
+}
+
+.dash-refresh-btn:hover {
+  background-color: #18191b;
+  border-color: #26272a;
+  color: #ececed;
+}
+
+/* File Grid */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+  padding-top: 18px;
+}
+
+/* Toast */
+.dash-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  z-index: 2000;
+  background-color: #141416;
+  border: 1px solid #202124;
+  color: #ececed;
+}
+
+.dash-toast--success {
+  border-color: #26272a;
+}
+
+.dash-toast--error {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+/* Window drag overlay */
+.window-drag-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(12, 12, 13, 0.85);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.window-drag-box {
+  border: 1px dashed #3b82f6;
+  border-radius: 8px;
+  padding: 52px 68px;
+  background-color: #141416;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ececed;
+  text-align: center;
+}
+
+.window-drag-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #ececed;
+  margin: 14px 0 4px 0;
+}
+
+.window-drag-desc {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  color: #6e7076;
+  margin: 0;
+}
+
+/* Mobile responsive rules */
+@media (max-width: 768px) {
+  .dash-body {
+    flex-direction: column;
+  }
+
+  .dash-content-inner {
+    padding: 16px;
+  }
+
+  .dash-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .dash-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

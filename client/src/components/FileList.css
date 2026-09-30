@@ -1,0 +1,207 @@
+.filelist-container {
+  width: 100%;
+}
+
+.filelist-header {
+  display: grid;
+  grid-template-columns: 1fr 52px 78px 96px 64px;
+  gap: 16px;
+  align-items: center;
+  padding: 0 14px;
+  height: 40px;
+  border-bottom: 1px solid #202124;
+  user-select: none;
+  position: sticky;
+  top: 60px;
+  background-color: #0c0c0d;
+  z-index: 10;
+}
+
+.filelist-th {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: #6e7076;
+}
+
+.filelist-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.filelist-row {
+  display: grid;
+  grid-template-columns: 1fr 52px 78px 96px 64px;
+  gap: 16px;
+  align-items: center;
+  padding: 0 14px;
+  height: 48px;
+  border-bottom: 1px solid #202124;
+  background-color: transparent;
+  transition: background-color 120ms ease;
+}
+
+.filelist-row:hover {
+  background-color: #18191b;
+}
+
+.filelist-col {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  font-weight: 400;
+}
+
+.filelist-col-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.filelist-col-name:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.filelist-row-file-icon {
+  color: #85878c;
+  flex-shrink: 0;
+}
+
+.filelist-filename {
+  color: #ececed;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filelist-col-type {
+  color: #9a9ca1;
+  white-space: nowrap;
+}
+
+.filelist-col-size {
+  color: #9a9ca1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.filelist-col-date {
+  color: #9a9ca1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.filelist-col-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.filelist-action-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #85878c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+  padding: 0;
+}
+
+.filelist-action-btn:hover {
+  color: #ececed;
+  background-color: #202124;
+}
+
+.filelist-action-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.filelist-action-btn--delete:hover {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.filelist-action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Status states */
+.filelist-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 68px 20px;
+  text-align: center;
+}
+
+.filelist-status-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  color: #6e7076;
+  margin-top: 14px;
+}
+
+.filelist-status-error {
+  color: #ef4444;
+}
+
+.filelist-spinner {
+  width: 26px;
+  height: 26px;
+  border: 2px solid #202124;
+  border-top-color: #ececed;
+  border-radius: 50%;
+  animation: filelist-spin 0.7s linear infinite;
+}
+
+@keyframes filelist-spin {
+  to { transform: rotate(360deg); }
+}
+
+.filelist-retry-btn {
+  margin-top: 16px;
+  height: 34px;
+  padding: 0 16px;
+  background-color: #141416;
+  border: 1px solid #202124;
+  border-radius: 8px;
+  color: #ececed;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.filelist-retry-btn:hover {
+  background-color: #18191b;
+}
+
+.filelist-retry-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Horizontal scroll on mobile */
+@media (max-width: 768px) {
+  .filelist-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filelist-header,
+  .filelist-row {
+    min-width: 520px;
+  }
+}

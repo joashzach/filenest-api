@@ -22,11 +22,18 @@ exports.generateUploadUrl = async (key, mimeType) => {
 };
 
 // GET OBJECT
-exports.generateDownloadUrl = async (key) => {
-  const command = new GetObjectCommand({
+exports.generateDownloadUrl = async (key, contentType) => {
+  const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
     Key: key,
-  });
+    ResponseContentDisposition: "inline",
+  };
+
+  if (contentType) {
+    params.ResponseContentType = contentType;
+  }
+
+  const command = new GetObjectCommand(params);
 
   return await getSignedUrl(s3, command, {
     expiresIn: 300,

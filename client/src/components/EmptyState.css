@@ -1,0 +1,35 @@
+.empty-state {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: 24px;
+  text-align: center;
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state-icon {
+  color: #6e7076;
+  margin-bottom: 14px;
+}
+
+.empty-state-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: #ececed;
+  margin: 0 0 6px 0;
+}
+
+.empty-state-desc {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  color: #6e7076;
+  margin: 0;
+}
