@@ -5,8 +5,8 @@ const {
   generateDownloadUrlService,
   getAllFilesService,
   getFileService,
-
   deleteFileService,
+  moveFileService
 } = require("../services/fileService");
 
 // GENERATE UPLOAD URL
@@ -26,10 +26,10 @@ exports.generateUploadUrl = catchAsync(async (req, res) => {
 
 // SEND METADATA TO MONGODB
 exports.confirmUpload = catchAsync(async (req, res, next) => {
-  const { originalName, mimeType, size, key } = req.body;
+  const { originalName, mimeType, size, key, folder } = req.body;
 
   const file = await confirmUploadService(
-    { originalName, mimeType, size, key },
+    { originalName, mimeType, size, key, folder },
     req.user._id,
   );
 
@@ -55,14 +55,14 @@ exports.generateDownloadUrl = catchAsync(async (req, res, next) => {
 exports.getAllFiles = catchAsync(async (req, res, next) => {
   const files = await getAllFilesService(req.user._id);
   if (files.length === 0) {
-  return res.status(200).json({
-    message: "You do not have any files!",
-    data: {
-      results: 0,
-      files: [],
-    },
-  });
-}
+    return res.status(200).json({
+      message: "You do not have any files!",
+      data: {
+        results: 0,
+        files: [],
+      },
+    });
+  }
   res.status(200).json({
     message: "Received all files successfully!",
     data: {
@@ -90,5 +90,17 @@ exports.deleteFile = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     message: "File deleted successfully!",
+  });
+});
+
+// MOVE FILE (FOLDER)
+exports.moveFile = catchAsync(async (req, res) => {
+  const { folder } = req.body;
+
+  const file = await moveFileService(req.params.id, folder, req.user._id);
+
+  res.status(200).json({
+    message: "File moved successfully!",
+    data: file,
   });
 });

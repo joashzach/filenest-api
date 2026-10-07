@@ -1,30 +1,52 @@
 .preview-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 16px;
+  animation: previewFadeIn 0.15s ease-out;
 }
 
+@keyframes previewFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes previewScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Modal view: sized for comfortable presentation & document viewing */
 .preview-modal {
-  width: 520px;
-  height: 440px;
+  width: 580px;
+  height: 430px;
   max-width: calc(100% - 32px);
   max-height: calc(100vh - 32px);
   background-color: #111113;
   border: 1px solid #26272a;
   border-radius: 12px;
-  padding: 18px 20px;
+  padding: 16px 20px 18px 20px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-primary, 'Poppins', sans-serif);
   color: #ececed;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+  animation: previewScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Header: Filename only + X close button (no icons on view) */
 .preview-header {
   display: flex;
   align-items: center;
@@ -34,8 +56,8 @@
 }
 
 .preview-filename {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
+  font-family: inherit;
+  font-size: 15px;
   font-weight: 500;
   color: #ececed;
   margin: 0;
@@ -58,17 +80,12 @@
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
-  transition: color 120ms ease, background-color 120ms ease;
+  transition: all 0.12s ease;
 }
 
 .preview-close-btn:hover {
-  background-color: #18191b;
+  background-color: #1a1b1f;
   color: #ececed;
-}
-
-.preview-close-btn:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
 }
 
 /* Preview Area */
@@ -87,29 +104,77 @@
   width: 100%;
 }
 
-/* Status: loading & failure */
-.preview-status-text {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+/* Loading Overlay */
+.preview-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background-color: #0c0c0d;
+  z-index: 5;
+  transition: opacity 0.2s ease;
+}
+
+.preview-loading-overlay .file-card-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-top-color: #ececed;
+  border-radius: 50%;
+  animation: previewSpinner 0.7s linear infinite;
+}
+
+@keyframes previewSpinner {
+  to { transform: rotate(360deg); }
+}
+
+/* Status & Fallback text (no icons) */
+.preview-status-text,
+.preview-fallback-text {
+  font-family: inherit;
   font-size: 13px;
-  color: #6e7076;
+  color: #7b7d84;
   user-select: none;
+  text-align: center;
+  padding: 16px;
 }
 
-/* Image preview */
-.preview-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  display: block;
-}
-
-/* PDF iframe */
-.preview-pdf-frame {
+/* Embedded Frame (PPTs, PDFs, Docs) */
+.preview-frame {
   width: 100%;
   height: 100%;
   border: 0;
   display: block;
   background-color: #ffffff;
+  transition: opacity 0.25s ease;
+}
+
+.preview-frame.loading {
+  opacity: 0;
+}
+
+.preview-frame.ready {
+  opacity: 1;
+}
+
+/* Images */
+.preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  transition: opacity 0.25s ease;
+}
+
+.preview-image.loading {
+  opacity: 0;
+}
+
+.preview-image.ready {
+  opacity: 1;
 }
 
 /* Video */
@@ -117,27 +182,31 @@
   max-width: 100%;
   max-height: 100%;
   outline: none;
+  transition: opacity 0.25s ease;
+}
+
+.preview-video.loading {
+  opacity: 0;
+}
+
+.preview-video.ready {
+  opacity: 1;
 }
 
 /* Audio */
-.preview-audio-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  width: 100%;
-  padding: 20px;
-}
-
-.preview-audio-icon {
-  color: #6e7076;
-}
-
 .preview-audio-player {
   width: 100%;
-  max-width: 320px;
+  max-width: 340px;
   outline: none;
+  transition: opacity 0.25s ease;
+}
+
+.preview-audio-player.loading {
+  opacity: 0;
+}
+
+.preview-audio-player.ready {
+  opacity: 1;
 }
 
 /* Text & Code */
@@ -153,10 +222,10 @@
   flex: 1;
   min-height: 0;
   margin: 0;
-  padding: 12px;
+  padding: 14px 16px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: #ececed;
   overflow: auto;
   white-space: pre-wrap;
@@ -165,7 +234,7 @@
 }
 
 .preview-text-truncation-note {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: inherit;
   font-size: 11px;
   color: #6e7076;
   padding: 6px 12px;
@@ -175,34 +244,15 @@
   user-select: none;
 }
 
-/* Fallback: File icon + "No preview available" */
-.preview-fallback-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  user-select: none;
-}
-
-.preview-fallback-icon {
-  color: #6e7076;
-}
-
-.preview-fallback-text {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 13px;
-  color: #6e7076;
-}
-
 /* Responsive adjustment for small screens */
-@media (max-width: 540px) {
+@media (max-width: 640px) {
   .preview-modal {
-    padding: 14px 16px;
-    height: 380px;
+    width: 100%;
+    height: calc(100vh - 24px);
+    padding: 14px;
   }
 
   .preview-filename {
-    font-size: 15px;
+    font-size: 14px;
   }
 }

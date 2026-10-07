@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { getUploadUrl, uploadToS3, confirmUpload } from '../services/FileApi';
 import { formatSize, getFileCategory } from '../utils/fileUtils';
-import { IconUpload, IconFile, IconCheck, IconClose, IconAlert } from './Icons';
+import { IconCloudUpload, IconFile, IconClose, IconAlert } from './Icons';
 import './UploadModal.css';
 
 /**
- * UploadModal — Upload dialog with drag & drop and real multi-stage progress
+ * UploadModal — Upload dialog matching the compact design reference
  */
-export default function UploadModal({ isOpen, onClose, onSuccess }) {
+export default function UploadModal({ isOpen, onClose, onSuccess, currentFolderId }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progressStage, setProgressStage] = useState('');
@@ -63,7 +63,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
     setError('');
     setUploading(true);
     setProgressPercent(15);
-    setProgressStage('Authorizing secure cloud upload...');
+    setProgressStage('Authorizing secure upload...');
 
     try {
       // Step 1: Request presigned upload URL from backend
@@ -78,15 +78,15 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
         throw new Error('Server did not return a valid upload authorization URL.');
       }
 
-      // Step 2: Upload directly to S3 via presigned PUT
+      // Step 2: Upload directly to storage via presigned PUT
       setProgressPercent(55);
-      setProgressStage('Uploading file directly to cloud storage...');
+      setProgressStage('Uploading file directly to secure storage...');
       await uploadToS3(uploadUrl, selectedFile);
 
       // Step 3: Confirm upload with backend (save metadata in MongoDB)
       setProgressPercent(85);
       setProgressStage('Registering file metadata...');
-      await confirmUpload({ originalName, mimeType, size, key });
+      await confirmUpload({ originalName, mimeType, size, key, folder: currentFolderId || null });
 
       // Step 4: Done!
       setProgressPercent(100);
@@ -112,21 +112,22 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
       <div className="upload-modal" onClick={(e) => e.stopPropagation()}>
         <div className="upload-modal-header">
           <div className="upload-modal-title-wrap">
-            <div className="upload-modal-icon-badge">
-              <IconUpload size={20} />
-            </div>
-            <div>
-              <h3 className="text-heading-xs upload-modal-title">Upload File</h3>
-              <p className="text-caption text-smoke">Upload files directly to your secure cloud bucket</p>
-            </div>
+            <h3 className="upload-modal-title">Upload file</h3>
+            <p className="upload-modal-subtitle">Upload files directly to your secure storage</p>
           </div>
-          <button className="upload-modal-close" onClick={handleClose} disabled={uploading}>
-            <IconClose size={18} />
+          <button
+            type="button"
+            className="upload-modal-close"
+            onClick={handleClose}
+            disabled={uploading}
+            aria-label="Close upload modal"
+          >
+            <IconClose size={15} />
           </button>
         </div>
 
         {error && (
-          <div className="form-error-box upload-modal-error">
+          <div className="upload-modal-error">
             <IconAlert size={16} />
             <span>{error}</span>
           </div>
@@ -147,34 +148,38 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
               onChange={(e) => handleFileSelection(e.target.files?.[0])}
             />
             <div className="upload-dropzone-icon">
-              <IconUpload size={32} />
+              <IconCloudUpload size={30} />
             </div>
-            <p className="upload-dropzone-primary text-body">
-              Drag & drop your file here, or <span className="upload-dropzone-browse">browse</span>
+            <p className="upload-dropzone-primary">
+              Drag and drop a file here, or <span className="upload-dropzone-browse">browse</span>
             </p>
-            <p className="text-caption text-smoke">Supports all formats: Documents, Images, Media, Archives</p>
+            <p className="upload-dropzone-secondary">
+              Supports all formats: Documents, Images, Media, Archives
+            </p>
           </div>
         ) : (
           <div className="upload-selected-file">
             <div className="upload-selected-info">
               <div className={`upload-selected-icon upload-selected-icon--${category}`}>
-                <IconFile category={category} size={28} />
+                <IconFile category={category} size={24} />
               </div>
               <div className="upload-selected-details">
                 <span className="upload-selected-name" title={selectedFile.name}>
                   {selectedFile.name}
                 </span>
-                <span className="upload-selected-size text-caption text-smoke">
+                <span className="upload-selected-size">
                   {formatSize(selectedFile.size)} • {selectedFile.type || 'Unknown type'}
                 </span>
               </div>
               {!uploading && (
                 <button
+                  type="button"
                   className="upload-selected-remove"
                   onClick={() => setSelectedFile(null)}
-                  title="Choose a different file"
+                  title="Remove selected file"
+                  aria-label="Remove selected file"
                 >
-                  <IconClose size={16} />
+                  <IconClose size={15} />
                 </button>
               )}
             </div>
@@ -182,8 +187,8 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
             {uploading && (
               <div className="upload-progress-box">
                 <div className="upload-progress-info">
-                  <span className="text-small text-chalk">{progressStage}</span>
-                  <span className="text-small text-smoke">{progressPercent}%</span>
+                  <span className="upload-progress-stage">{progressStage}</span>
+                  <span className="upload-progress-percent">{progressPercent}%</span>
                 </div>
                 <div className="upload-progress-bar">
                   <div
@@ -199,7 +204,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
         <div className="upload-modal-footer">
           <button
             type="button"
-            className="btn-secondary"
+            className="upload-btn-cancel"
             onClick={handleClose}
             disabled={uploading}
           >
@@ -207,8 +212,8 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
           </button>
           <button
             type="button"
-            className="btn-primary"
-            onClick={handleUpload}
+            className={`upload-btn-start ${selectedFile && !uploading ? 'upload-btn-start--active' : ''}`}
+            onClick={selectedFile ? handleUpload : undefined}
             disabled={!selectedFile || uploading}
           >
             {uploading ? (
@@ -217,7 +222,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
                 <span>Uploading...</span>
               </>
             ) : (
-              'Start Upload'
+              'Start upload'
             )}
           </button>
         </div>

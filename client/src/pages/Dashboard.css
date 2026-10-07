@@ -55,45 +55,117 @@
   min-height: 0;
 }
 
-/* Header Toolbar */
-.dash-header {
+/* Single Toolbar Row matching UI design exactly */
+.dash-single-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid #202124;
+  margin-bottom: 24px;
   flex-shrink: 0;
 }
 
-.dash-title-group {
+.dash-toolbar-left {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
-.dash-title {
+.dash-count-inline {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 22px;
-  font-weight: 500;
-  color: #ececed;
-  margin: 0;
-  letter-spacing: -0.2px;
-  line-height: 1.2;
-}
-
-.dash-count {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 400;
-  color: #6e7076;
+  color: #85878c;
   white-space: nowrap;
 }
 
-.dash-header-actions {
+.dash-toolbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+}
+
+/* CTAs: New folder & Upload file */
+.dash-new-folder-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid #28292d;
+  background-color: #141416;
+  color: #ececed;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  white-space: nowrap;
+}
+
+.dash-new-folder-btn:hover {
+  background-color: #18191b;
+  border-color: #383a40;
+  color: #ffffff;
+}
+
+.dash-new-folder-btn svg {
+  color: #85878c;
+  flex-shrink: 0;
+  transition: color 120ms ease;
+}
+
+.dash-new-folder-btn:hover svg {
+  color: #ececed;
+}
+
+.dash-upload-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: none;
+  background-color: #ffffff;
+  color: #0c0c0d;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 120ms ease, opacity 120ms ease;
+  white-space: nowrap;
+}
+
+.dash-upload-btn:hover:not(:disabled) {
+  background-color: #e6e6e8;
+}
+
+.dash-upload-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.dash-upload-btn svg {
+  color: #0c0c0d;
+  flex-shrink: 0;
+}
+
+.dash-upload-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(12, 12, 13, 0.3);
+  border-top-color: #0c0c0d;
+  border-radius: 50%;
+  animation: dashUploadSpin 0.8s linear infinite;
+}
+
+@keyframes dashUploadSpin {
+  to { transform: rotate(360deg); }
 }
 
 /* View toggle */
@@ -309,14 +381,29 @@
     padding: 16px;
   }
 
-  .dash-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .dash-single-toolbar {
+    flex-wrap: wrap;
+    row-gap: 14px;
   }
 
-  .dash-header-actions {
+  .dash-toolbar-right {
     width: 100%;
     justify-content: flex-end;
+    flex-wrap: wrap;
   }
 }
+
+@media (max-width: 480px) {
+  .dash-new-folder-btn span,
+  .dash-upload-btn span {
+    display: none;
+  }
+
+  .dash-new-folder-btn,
+  .dash-upload-btn {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+

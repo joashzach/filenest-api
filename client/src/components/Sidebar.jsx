@@ -1,6 +1,4 @@
-import React from 'react';
 import {
-  Upload,
   Folder,
   Image,
   FileText,
@@ -12,7 +10,7 @@ import { formatStorageSize } from '../utils/fileUtils';
 import './Sidebar.css';
 
 const NAV_CATEGORIES = [
-  { id: 'all', label: 'All files', icon: Folder },
+  { id: 'all', label: 'My Files', icon: Folder },
   { id: 'images', label: 'Images', icon: Image },
   { id: 'documents', label: 'Documents', icon: FileText },
   { id: 'media', label: 'Media', icon: Video },
@@ -25,11 +23,11 @@ const NAV_CATEGORIES = [
 export default function Sidebar({
   files = [],
   categoryCounts = {},
+  rootCounts = { folders: 0, files: 0 },
   activeSection = 'files',
   onSectionChange,
   activeCategory = 'all',
   onCategoryChange,
-  onUploadClick,
 }) {
   const totalBytes = files.reduce((sum, f) => sum + (f.size || 0), 0);
 
@@ -38,14 +36,21 @@ export default function Sidebar({
     if (onCategoryChange) onCategoryChange(categoryId);
   }
 
+  const rootFolders = rootCounts?.folders || 0;
+  const rootFiles = rootCounts?.files || 0;
+  const rootTotal = rootFolders + rootFiles;
+
+  const rootTooltipParts = [];
+  if (rootFolders > 0) {
+    rootTooltipParts.push(`${rootFolders} ${rootFolders === 1 ? 'folder' : 'folders'}`);
+  }
+  if (rootFiles > 0) {
+    rootTooltipParts.push(`${rootFiles} ${rootFiles === 1 ? 'file' : 'files'}`);
+  }
+  const rootTooltip = rootTooltipParts.join(', ') || undefined;
+
   return (
     <aside className="sidebar">
-      {/* Upload file button */}
-      <button className="sidebar-upload-btn" onClick={onUploadClick}>
-        <Upload size={17} strokeWidth={1.5} className="sidebar-upload-icon" />
-        <span>Upload file</span>
-      </button>
-
       {/* Files Section */}
       <div className="sidebar-section-label">Files</div>
 
@@ -53,17 +58,24 @@ export default function Sidebar({
         {NAV_CATEGORIES.map((cat) => {
           const Icon = cat.icon;
           const isActive = activeSection === 'files' && activeCategory === cat.id;
-          const count = categoryCounts[cat.id] || 0;
+          const isAll = cat.id === 'all';
+          const count = isAll ? rootTotal : (categoryCounts[cat.id] || 0);
+          const tooltip = isAll ? rootTooltip : undefined;
 
           return (
             <button
               key={cat.id}
               className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item--active' : ''}`}
               onClick={() => handleCategoryClick(cat.id)}
+              title={tooltip}
             >
               <Icon size={17} strokeWidth={1.5} className="sidebar-item-icon" />
               <span className="sidebar-item-label">{cat.label}</span>
-              {count > 0 && <span className="sidebar-item-count">{count}</span>}
+              {count > 0 && (
+                <span className="sidebar-item-count" title={tooltip}>
+                  {count}
+                </span>
+              )}
             </button>
           );
         })}

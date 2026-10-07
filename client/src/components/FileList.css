@@ -39,6 +39,8 @@
   border-bottom: 1px solid #202124;
   background-color: transparent;
   transition: background-color 120ms ease;
+  cursor: pointer;
+  border-radius: 4px;
 }
 
 .filelist-row:hover {
@@ -81,17 +83,20 @@
 
 .filelist-col-type {
   color: #9a9ca1;
+  font-size: 13.5px;
   white-space: nowrap;
 }
 
 .filelist-col-size {
   color: #9a9ca1;
+  font-size: 13.5px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .filelist-col-date {
   color: #9a9ca1;
+  font-size: 13.5px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -159,6 +164,28 @@
   color: #ef4444;
 }
 
+.filelist-retry-btn {
+  margin-top: 16px;
+  height: 34px;
+  padding: 0 16px;
+  background-color: #141416;
+  border: 1px solid #202124;
+  border-radius: 8px;
+  color: #ececed;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.filelist-retry-btn:hover {
+  background-color: #18191b;
+}
+
+.filelist-retry-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
 .filelist-spinner {
   width: 26px;
   height: 26px;
@@ -172,36 +199,25 @@
   to { transform: rotate(360deg); }
 }
 
-.filelist-retry-btn {
-  margin-top: 16px;
-  height: 34px;
-  padding: 0 16px;
-  background-color: #141416;
-  border: 1px solid #202124;
-  border-radius: 8px;
-  color: #ececed;
-  font-size: 13.5px;
-  cursor: pointer;
-}
-
-.filelist-retry-btn:hover {
-  background-color: #18191b;
-}
-
-.filelist-retry-btn:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-/* Horizontal scroll on mobile */
-@media (max-width: 768px) {
-  .filelist-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
+/* Responsive adjustments */
+@media (max-width: 900px) {
   .filelist-header,
   .filelist-row {
-    min-width: 520px;
+    grid-template-columns: 1fr 52px 78px 64px;
+  }
+  .filelist-th-date,
+  .filelist-col-date {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .filelist-header,
+  .filelist-row {
+    grid-template-columns: 1fr 78px 64px;
+  }
+  .filelist-th-type,
+  .filelist-col-type {
+    display: none;
   }
 }

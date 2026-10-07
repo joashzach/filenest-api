@@ -1,9 +1,8 @@
 import React from 'react';
-import { IconTrash, IconClose, IconAlert } from './Icons';
 import './DeleteConfirmModal.css';
 
 /**
- * DeleteConfirmModal — Prevents accidental file deletion
+ * DeleteConfirmModal — Compact confirmation popup matching UI design exactly
  */
 export default function DeleteConfirmModal({ file, isOpen, onClose, onConfirm, isDeleting }) {
   if (!isOpen || !file) return null;
@@ -11,22 +10,18 @@ export default function DeleteConfirmModal({ file, isOpen, onClose, onConfirm, i
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="delete-modal-icon-wrap">
-          <IconAlert size={28} />
-        </div>
-
         <div className="delete-modal-content">
-          <h3 className="text-heading-xs delete-modal-title">Delete File</h3>
-          <p className="text-body text-smoke delete-modal-desc">
-            Are you sure you want to delete <strong className="text-chalk">{file.originalName}</strong>?
-            This will permanently remove the file from cloud storage and database.
+          <h3 className="delete-modal-title">Delete this file?</h3>
+          <p className="delete-modal-desc">
+            <strong className="delete-modal-target-name">{file.originalName}</strong> will be
+            permanently deleted. This can't be undone.
           </p>
         </div>
 
         <div className="delete-modal-actions">
           <button
             type="button"
-            className="btn-secondary"
+            className="delete-modal-cancel-btn"
             onClick={onClose}
             disabled={isDeleting}
           >
@@ -34,21 +29,11 @@ export default function DeleteConfirmModal({ file, isOpen, onClose, onConfirm, i
           </button>
           <button
             type="button"
-            className="btn-danger-solid"
+            className="delete-modal-confirm-btn"
             onClick={() => onConfirm(file)}
             disabled={isDeleting}
           >
-            {isDeleting ? (
-              <>
-                <span className="file-card-spinner" />
-                <span>Deleting...</span>
-              </>
-            ) : (
-              <>
-                <IconTrash size={16} />
-                <span>Delete Permanently</span>
-              </>
-            )}
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>

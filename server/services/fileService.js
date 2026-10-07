@@ -1,4 +1,5 @@
 const File = require("../models/fileModel");
+const Folder = require("../models/folderModel");
 const ApiError = require("../utils/apiError");
 const {
   generateUploadUrl,
@@ -12,10 +13,10 @@ exports.generateUploadUrlService = async (fileData, userId) => {
 
   const uploadUrl = await generateUploadUrl(key, fileData.mimeType);
 
-  return {key, uploadUrl};
+  return { key, uploadUrl };
 };
 
-// CONFIRM UPLOAD SERVICE 
+// CONFIRM UPLOAD SERVICE
 exports.confirmUploadService = async (fileData, userId) => {
   const file = await File.create({
     originalName: fileData.originalName,
@@ -23,36 +24,55 @@ exports.confirmUploadService = async (fileData, userId) => {
     size: fileData.size,
     key: fileData.key,
     owner: userId,
-  })
+    folder: fileData.folder || null,
+  });
 
   return file;
-}
+};
 
 const EXT_MIME_MAP = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  gif: 'image/gif',
-  webp: 'image/webp',
-  svg: 'image/svg+xml',
-  pdf: 'application/pdf',
-  txt: 'text/plain',
-  md: 'text/markdown',
-  csv: 'text/csv',
-  json: 'application/json',
-  mp4: 'video/mp4',
-  webm: 'video/webm',
-  mp3: 'audio/mpeg',
-  wav: 'audio/wav',
-  ogg: 'audio/ogg',
-  m4a: 'audio/mp4',
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  pdf: "application/pdf",
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  json: "application/json",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ppt: "application/vnd.ms-powerpoint",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  doc: "application/msword",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  xls: "application/vnd.ms-excel",
+  bmp: "image/bmp",
+  ico: "image/x-icon",
+  avif: "image/avif",
+  mov: "video/quicktime",
+  m4v: "video/mp4",
+  mkv: "video/x-matroska",
+  aac: "audio/aac",
+  flac: "audio/flac",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  m4a: "audio/mp4",
 };
 
 function resolveContentType(originalName, storedMime) {
-  const ext = (originalName || '').split('.').pop().toLowerCase();
+  const ext = (originalName || "").split(".").pop().toLowerCase();
   const mapped = EXT_MIME_MAP[ext];
-  if (!storedMime || storedMime === 'application/octet-stream' || storedMime === 'binary/octet-stream') {
-    return mapped || storedMime || 'application/octet-stream';
+  if (
+    !storedMime ||
+    storedMime === "application/octet-stream" ||
+    storedMime === "binary/octet-stream"
+  ) {
+    return mapped || storedMime || "application/octet-stream";
   }
   return storedMime;
 }
@@ -61,11 +81,11 @@ function resolveContentType(originalName, storedMime) {
 exports.generateDownloadUrlService = async (fileId, userId) => {
   const file = await File.findById(fileId);
 
-  if(!file) {
-    throw new ApiError("This file does not exist!", 404)
+  if (!file) {
+    throw new ApiError("This file does not exist!", 404);
   }
 
-  if(file.owner.toString() !== userId.toString()) {
+  if (file.owner.toString() !== userId.toString()) {
     throw new ApiError("You do not have permission to access this file!", 403);
   }
 
@@ -73,12 +93,12 @@ exports.generateDownloadUrlService = async (fileId, userId) => {
   const downloadUrl = await generateDownloadUrl(file.key, contentType);
 
   return downloadUrl;
-}
+};
 
 // GET ALL FILES SERVICE
 exports.getAllFilesService = async (id) => {
   const files = await File.find({ owner: id });
-  
+
   return files;
 };
 
@@ -105,4 +125,33 @@ exports.deleteFileService = async (fileId, userId) => {
 
   // Delete metadata from DB
   await File.findByIdAndDelete(fileId);
+};
+
+// MOVE FILE SERVICE
+exports.moveFileService = async (fileId, folderId, userId) => {
+  const file = await File.findOne({
+    _id: fileId,
+    owner: userId,
+  });
+
+  if (!file) {
+    throw new ApiError("File does not exist!", 404);
+  }
+
+  if (folderId) {
+    const folder = await Folder.findOne({
+      _id: folderId,
+      owner: userId,
+    });
+
+    if (!folder) {
+      throw new ApiError("Folder does not exist!", 404);
+    }
+  }
+
+  file.folder = folderId || null;
+
+  await file.save();
+
+  return file;
 };

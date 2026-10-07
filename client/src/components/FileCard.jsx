@@ -1,17 +1,18 @@
 import React from 'react';
 import { formatSize, formatRelativeTime, getFileExtension, getFileCategory } from '../utils/fileUtils';
-import { File, Image, FileText, Video, Download, Trash2 } from 'lucide-react';
+import { File, Image, FileText, Video, Download, Trash2, MoveRight } from 'lucide-react';
 import './FileCard.css';
 
 /**
  * FileCard — Grid view card representation of a single file
- * Files match their category icon, Eye action removed
+ * Files match their category icon; includes Move action
  */
 export default function FileCard({
   file,
   onDownload,
   onDelete,
   onPreview,
+  onMove,
   isDownloading = false,
   isDeleting = false,
 }) {
@@ -21,13 +22,13 @@ export default function FileCard({
     const category = getFileCategory(file);
     switch (category) {
       case 'images':
-        return <Image size={22} strokeWidth={1.5} className="file-card-icon" />;
+        return <Image size={18} strokeWidth={1.5} className="file-card-icon" />;
       case 'documents':
-        return <FileText size={22} strokeWidth={1.5} className="file-card-icon" />;
+        return <FileText size={18} strokeWidth={1.5} className="file-card-icon" />;
       case 'media':
-        return <Video size={22} strokeWidth={1.5} className="file-card-icon" />;
+        return <Video size={18} strokeWidth={1.5} className="file-card-icon" />;
       default:
-        return <File size={22} strokeWidth={1.5} className="file-card-icon" />;
+        return <File size={18} strokeWidth={1.5} className="file-card-icon" />;
     }
   }
 
@@ -50,6 +51,18 @@ export default function FileCard({
       </div>
 
       <div className="file-card-actions" onClick={(e) => e.stopPropagation()}>
+        {onMove && (
+          <button
+            className="file-card-btn"
+            title="Move file"
+            aria-label="Move file"
+            onClick={() => onMove(file)}
+            disabled={isDownloading || isDeleting}
+          >
+            <MoveRight size={13} strokeWidth={1.5} />
+          </button>
+        )}
+
         <button
           className="file-card-btn"
           title="Download file"
@@ -57,7 +70,7 @@ export default function FileCard({
           onClick={() => onDownload(file)}
           disabled={isDownloading || isDeleting}
         >
-          <Download size={17} strokeWidth={1.5} />
+          <Download size={14} strokeWidth={1.5} />
         </button>
 
         <button
@@ -67,7 +80,7 @@ export default function FileCard({
           onClick={() => onDelete(file)}
           disabled={isDeleting || isDownloading}
         >
-          <Trash2 size={17} strokeWidth={1.5} />
+          <Trash2 size={14} strokeWidth={1.5} />
         </button>
       </div>
     </div>

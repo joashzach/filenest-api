@@ -1,0 +1,16 @@
+/**
+ * FolderCard.css — minimal overrides on top of file-card styles.
+ */
+
+.folder-card {
+  cursor: pointer;
+}
+
+.folder-card-icon {
+  color: #9a9ca1;
+}
+
+.folder-card-badge {
+  color: #85878c;
+  font-style: normal;
+}

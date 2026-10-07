@@ -29,11 +29,11 @@ export async function uploadToS3(presignedUrl, file) {
   }
 }
 
-export async function confirmUpload({ originalName, mimeType, size, key }) {
+export async function confirmUpload({ originalName, mimeType, size, key, folder }) {
   return request('/files/upload-confirm', {
     method: 'POST',
     auth: true,
-    body: { originalName, mimeType, size, key },
+    body: { originalName, mimeType, size, key, folder: folder || null },
   });
 }
 
@@ -45,5 +45,16 @@ export async function deleteFile(fileId) {
   return request(`/files/${fileId}`, {
     method: 'DELETE',
     auth: true,
+  });
+}
+
+/**
+ * Move a file to a different folder, or to root (folder: null)
+ */
+export async function moveFile(fileId, folderId) {
+  return request(`/files/${fileId}/move`, {
+    method: 'PATCH',
+    auth: true,
+    body: { folder: folderId || null },
   });
 }

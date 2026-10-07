@@ -1,12 +1,12 @@
 import React from 'react';
 import { formatSize, formatRelativeTime, getFileExtension, getFileCategory } from '../utils/fileUtils';
-import { File, Image, FileText, Video, Download, Trash2 } from 'lucide-react';
+import { File, Image, FileText, Video, Download, Trash2, MoveRight } from 'lucide-react';
 import EmptyState from './EmptyState';
 import './FileList.css';
 
 /**
  * FileList — Flat, restrained table view for files
- * Files match their category icon, Eye icon removed from row actions
+ * Files match their category icon; includes Move action
  */
 export default function FileList({
   files = [],
@@ -16,6 +16,7 @@ export default function FileList({
   onDownload,
   onDelete,
   onPreview,
+  onMove,
   downloadingId,
   deletingId,
 }) {
@@ -23,13 +24,13 @@ export default function FileList({
     const category = getFileCategory(file);
     switch (category) {
       case 'images':
-        return <Image size={18} strokeWidth={1.5} className="filelist-row-file-icon" />;
+        return <Image size={16} strokeWidth={1.5} className="filelist-row-file-icon" />;
       case 'documents':
-        return <FileText size={18} strokeWidth={1.5} className="filelist-row-file-icon" />;
+        return <FileText size={16} strokeWidth={1.5} className="filelist-row-file-icon" />;
       case 'media':
-        return <Video size={18} strokeWidth={1.5} className="filelist-row-file-icon" />;
+        return <Video size={16} strokeWidth={1.5} className="filelist-row-file-icon" />;
       default:
-        return <File size={18} strokeWidth={1.5} className="filelist-row-file-icon" />;
+        return <File size={16} strokeWidth={1.5} className="filelist-row-file-icon" />;
     }
   }
 
@@ -76,14 +77,17 @@ export default function FileList({
           const ext = getFileExtension(file);
 
           return (
-            <div key={file._id} className="filelist-row" role="row">
+            <div
+              key={file._id}
+              className="filelist-row"
+              role="row"
+              onClick={() => onPreview && onPreview(file)}
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && onPreview && onPreview(file)}
+            >
               {/* Name column */}
               <div
                 className="filelist-col filelist-col-name"
-                onClick={() => onPreview && onPreview(file)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && onPreview && onPreview(file)}
                 title={file.originalName}
               >
                 {renderCategoryIcon(file)}
@@ -106,7 +110,19 @@ export default function FileList({
               </div>
 
               {/* Actions column */}
-              <div className="filelist-col filelist-col-actions">
+              <div className="filelist-col filelist-col-actions" onClick={(e) => e.stopPropagation()}>
+                {onMove && (
+                  <button
+                    className="filelist-action-btn"
+                    title="Move file"
+                    aria-label="Move file"
+                    onClick={() => onMove(file)}
+                    disabled={isDownloading || isDeleting}
+                  >
+                    <MoveRight size={14} strokeWidth={1.5} />
+                  </button>
+                )}
+
                 <button
                   className="filelist-action-btn"
                   title="Download file"
@@ -114,7 +130,7 @@ export default function FileList({
                   onClick={() => onDownload(file)}
                   disabled={isDownloading || isDeleting}
                 >
-                  <Download size={17} strokeWidth={1.5} />
+                  <Download size={15} strokeWidth={1.5} />
                 </button>
 
                 <button
@@ -124,7 +140,7 @@ export default function FileList({
                   onClick={() => onDelete(file)}
                   disabled={isDeleting || isDownloading}
                 >
-                  <Trash2 size={17} strokeWidth={1.5} />
+                  <Trash2 size={15} strokeWidth={1.5} />
                 </button>
               </div>
             </div>

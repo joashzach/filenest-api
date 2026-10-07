@@ -18,6 +18,11 @@ export function formatStorageSize(bytes) {
   return `${size} ${units[i]}`;
 }
 
+export function formatFolderSize(bytes) {
+  if (!bytes || bytes === 0) return '0 KB';
+  return formatSize(bytes);
+}
+
 export function formatDate(dateString) {
   if (!dateString) return '—';
   const date = new Date(dateString);

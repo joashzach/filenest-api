@@ -1,0 +1,41 @@
+/**
+ * FolderRow.css — minimal overrides on top of filelist-row styles.
+ * No new colors introduced; all values match the existing palette.
+ */
+
+.folder-row {
+  cursor: default;
+}
+
+.folder-row-name {
+  cursor: pointer;
+}
+
+.folder-row-icon {
+  color: #9a9ca1;
+}
+
+.folder-row-label {
+  font-weight: 400;
+}
+
+.folder-row-chevron {
+  color: #3b3d42;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Normal font for folder type, not italics, matching other types */
+.folder-row-type {
+  color: #85878c;
+  font-style: normal;
+}
+
+.folder-row-size {
+  color: #85878c;
+  font-style: normal;
+}
+
+.folder-row-dim {
+  color: #6e7076;
+}

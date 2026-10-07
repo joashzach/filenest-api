@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getDownloadUrl } from '../services/FileApi';
-import { X, File, Music } from 'lucide-react';
+import { X } from 'lucide-react';
 import './FilePreviewModal.css';
 
 /**
- * Detect file type by MIME or extension (supporting binary/octet-stream fallbacks)
+ * Detect file type by MIME or extension
  */
 function detectFileType(file) {
-  if (!file) return { type: 'unknown' };
+  if (!file) return { type: 'unknown', ext: '' };
   const name = (file.originalName || '').toLowerCase();
   const ext = name.split('.').pop() || '';
   const mime = (file.mimeType || '').toLowerCase();
 
   // Images
   if (
-    ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext) ||
+    ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'].includes(ext) ||
     mime.startsWith('image/')
   ) {
     return { type: 'image', ext };
@@ -25,15 +25,29 @@ function detectFileType(file) {
     return { type: 'pdf', ext };
   }
 
+  // Presentations & Office documents (pptx, ppt, docx, doc, xlsx, xls)
+  if (
+    ['pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls'].includes(ext) ||
+    mime.includes('presentation') ||
+    mime.includes('powerpoint') ||
+    mime.includes('wordprocessingml') ||
+    mime.includes('spreadsheetml')
+  ) {
+    return { type: 'office', ext };
+  }
+
   // Video
-  if (['mp4', 'webm'].includes(ext) || mime === 'video/mp4' || mime === 'video/webm') {
+  if (
+    ['mp4', 'webm', 'ogg', 'mov', 'mkv', 'm4v'].includes(ext) ||
+    mime.startsWith('video/')
+  ) {
     return { type: 'video', ext };
   }
 
   // Audio
   if (
-    ['mp3', 'wav', 'ogg', 'm4a'].includes(ext) ||
-    ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a'].includes(mime)
+    ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext) ||
+    mime.startsWith('audio/')
   ) {
     return { type: 'audio', ext };
   }
@@ -54,19 +68,18 @@ function detectFileType(file) {
     return { type: 'text', ext };
   }
 
-  // Everything else (docx, xlsx, pptx, zip, unknown)
   return { type: 'unknown', ext };
 }
 
 /**
- * FilePreviewModal — Fixed 520px x 440px modal with header filename + X,
- * contained preview area, and no extra text or buttons.
+ * FilePreviewModal — Displays files directly with loading feedback for all media types
  */
 export default function FilePreviewModal({ file, isOpen, onClose }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [textContent, setTextContent] = useState(null);
   const [isTruncated, setIsTruncated] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [contentLoaded, setContentLoaded] = useState(false);
   const [error, setError] = useState(false);
 
   const modalRef = useRef(null);
@@ -77,7 +90,6 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
   useEffect(() => {
     if (isOpen) {
       previousActiveElementRef.current = document.activeElement;
-      // Focus close button initially
       setTimeout(() => {
         closeButtonRef.current?.focus();
       }, 0);
@@ -114,7 +126,10 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
       window.addEventListener('keydown', handleKeyDown);
       return () => {
         window.removeEventListener('keydown', handleKeyDown);
-        if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === 'function') {
+        if (
+          previousActiveElementRef.current &&
+          typeof previousActiveElementRef.current.focus === 'function'
+        ) {
           previousActiveElementRef.current.focus();
         }
       };
@@ -126,14 +141,16 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
     if (!isOpen || !file) {
       setPreviewUrl(null);
       setTextContent(null);
-      setLoading(false);
+      setUrlLoading(false);
+      setContentLoaded(false);
       setError(false);
       setIsTruncated(false);
       return;
     }
 
     const controller = new AbortController();
-    setLoading(true);
+    setUrlLoading(true);
+    setContentLoaded(false);
     setError(false);
     setPreviewUrl(null);
     setTextContent(null);
@@ -142,7 +159,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
     getDownloadUrl(file._id)
       .then(async (res) => {
         if (controller.signal.aborted) return;
-        const url = res.data?.result;
+        const url = res.data?.result || res.result;
         if (!url) throw new Error('No URL returned');
         setPreviewUrl(url);
 
@@ -158,6 +175,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
           if (!controller.signal.aborted) {
             setTextContent(text);
             setIsTruncated(truncated);
+            setContentLoaded(true);
           }
         }
       })
@@ -168,12 +186,21 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
       })
       .finally(() => {
         if (!controller.signal.aborted) {
-          setLoading(false);
+          setUrlLoading(false);
         }
       });
 
+    // Safety timeout: If content is still not marked loaded after 14s, hide the overlay
+    const safetyTimer = setTimeout(() => {
+      setContentLoaded((curr) => {
+        if (!curr) return true;
+        return curr;
+      });
+    }, 14000);
+
     return () => {
       controller.abort();
+      clearTimeout(safetyTimer);
     };
   }, [file, isOpen]);
 
@@ -181,14 +208,12 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
 
   const typeInfo = detectFileType(file);
 
-  function renderContent() {
-    if (loading) {
-      return <span className="preview-status-text">Loading preview</span>;
+  function renderMedia() {
+    if (error || (!urlLoading && !previewUrl)) {
+      return <span className="preview-fallback-text">No preview available</span>;
     }
 
-    if (error || !previewUrl) {
-      return <span className="preview-status-text">Couldn't load preview.</span>;
-    }
+    if (!previewUrl) return null;
 
     switch (typeInfo.type) {
       case 'image':
@@ -196,7 +221,9 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
           <img
             src={previewUrl}
             alt={file.originalName}
-            className="preview-image"
+            className={`preview-image ${contentLoaded ? 'ready' : 'loading'}`}
+            onLoad={() => setContentLoaded(true)}
+            onError={() => setError(true)}
           />
         );
 
@@ -204,8 +231,23 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
         return (
           <iframe
             src={`${previewUrl}#toolbar=0`}
-            className="preview-pdf-frame"
+            className={`preview-frame ${contentLoaded ? 'ready' : 'loading'}`}
             title={file.originalName}
+            onLoad={() => setContentLoaded(true)}
+            onError={() => setError(true)}
+          />
+        );
+
+      case 'office':
+        return (
+          <iframe
+            src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewUrl)}&embedded=true`}
+            className={`preview-frame ${contentLoaded ? 'ready' : 'loading'}`}
+            title={file.originalName}
+            allow="autoplay; fullscreen"
+            loading="eager"
+            onLoad={() => setContentLoaded(true)}
+            onError={() => setError(true)}
           />
         );
 
@@ -214,16 +256,24 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
           <video
             src={previewUrl}
             controls
-            className="preview-video"
+            playsInline
+            className={`preview-video ${contentLoaded ? 'ready' : 'loading'}`}
+            onLoadedData={() => setContentLoaded(true)}
+            onCanPlay={() => setContentLoaded(true)}
+            onError={() => setError(true)}
           />
         );
 
       case 'audio':
         return (
-          <div className="preview-audio-container">
-            <Music size={32} strokeWidth={1.5} className="preview-audio-icon" />
-            <audio src={previewUrl} controls className="preview-audio-player" />
-          </div>
+          <audio
+            src={previewUrl}
+            controls
+            className={`preview-audio-player ${contentLoaded ? 'ready' : 'loading'}`}
+            onLoadedData={() => setContentLoaded(true)}
+            onCanPlay={() => setContentLoaded(true)}
+            onError={() => setError(true)}
+          />
         );
 
       case 'text':
@@ -239,15 +289,11 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
         );
 
       default:
-        // Everything else (docx, xlsx, pptx, zip, unknown)
-        return (
-          <div className="preview-fallback-container">
-            <File size={32} strokeWidth={1.5} className="preview-fallback-icon" />
-            <span className="preview-fallback-text">No preview available</span>
-          </div>
-        );
+        return <span className="preview-fallback-text">No preview available</span>;
     }
   }
+
+  const showLoadingOverlay = !error && !contentLoaded && typeInfo.type !== 'unknown';
 
   return (
     <div className="preview-backdrop" onClick={onClose} role="dialog" aria-modal="true">
@@ -257,7 +303,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
         onClick={(e) => e.stopPropagation()}
         aria-label={file.originalName}
       >
-        {/* Header: Filename only + 28px X button */}
+        {/* Header: Filename only + X close button */}
         <div className="preview-header">
           <h2 className="preview-filename" title={file.originalName}>
             {file.originalName}
@@ -272,9 +318,15 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Preview Area: 14px below header, #0c0c0d, 1px #202124 border, 8px radius */}
+        {/* Preview Area: Contained direct view */}
         <div className="preview-area">
-          {renderContent()}
+          {showLoadingOverlay && (
+            <div className="preview-loading-overlay">
+              <span className="file-card-spinner" />
+              <span className="preview-status-text">Loading preview...</span>
+            </div>
+          )}
+          {renderMedia()}
         </div>
       </div>
     </div>

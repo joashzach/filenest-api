@@ -19,6 +19,14 @@
   margin-bottom: 14px;
 }
 
+.empty-state-icon-wrap {
+  margin-bottom: 14px;
+  color: #6e7076;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .empty-state-title {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 15px;
