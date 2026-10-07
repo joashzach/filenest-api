@@ -164,6 +164,7 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState('list');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const sortRef = useRef(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ── File actions & modals ───────────────────────────────────────────────────
   const [isUploading, setIsUploading] = useState(false);
@@ -198,6 +199,28 @@ export default function Dashboard() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Lock body scroll when any modal or the mobile drawer is open
+  const isAnyOverlayOpen = Boolean(
+    previewFile ||
+    deleteConfirmFile ||
+    moveFile ||
+    settingsModalOpen ||
+    createFolderOpen ||
+    renameFolderTarget ||
+    deleteFolderTarget ||
+    mobileMenuOpen
+  );
+
+  useEffect(() => {
+    if (isAnyOverlayOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isAnyOverlayOpen]);
 
   // ── Fetch ALL files (for category sidebar + StorageOverview) ─────────────────
   const fetchAllFiles = useCallback(async () => {
@@ -712,11 +735,13 @@ export default function Dashboard() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onOpenSettings={() => setSettingsModalOpen(true)}
+        isMobileMenuOpen={mobileMenuOpen}
+        onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
       />
 
       {/* Main Container */}
       <div className="dash-body">
-        {/* Left Sidebar 176px */}
+        {/* Left Sidebar 176px (desktop) / Drawer (mobile) */}
         <Sidebar
           files={allFiles}
           categoryCounts={categoryCounts}
@@ -724,12 +749,15 @@ export default function Dashboard() {
           activeSection={activeSection}
           onSectionChange={(sec) => {
             setActiveSection(sec);
-            if (sec === 'files') {
-              // Stay in current folder; just switch section
-            }
+            setMobileMenuOpen(false);
           }}
           activeCategory={activeCategory}
-          onCategoryChange={handleCategoryChange}
+          onCategoryChange={(cat) => {
+            handleCategoryChange(cat);
+            setMobileMenuOpen(false);
+          }}
+          isOpen={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
         />
 
         {/* Content Area */}
@@ -780,113 +808,117 @@ export default function Dashboard() {
 
                 {/* Right: Controls (Sort, View toggle, Refresh) + CTAs (New folder, Upload file) */}
                 <div className="dash-toolbar-right">
-                  {/* Sort dropdown */}
-                  <div className="dash-sort-container" ref={sortRef}>
-                    <button
-                      className="dash-sort-btn"
-                      onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
-                      aria-expanded={sortDropdownOpen}
-                      aria-label="Sort files"
-                    >
-                      <span>{currentSortLabel}</span>
-                      <ChevronDown size={15} strokeWidth={1.5} className="dash-sort-chevron" />
-                    </button>
+                  <div className="dash-toolbar-controls">
+                    {/* Sort dropdown */}
+                    <div className="dash-sort-container" ref={sortRef}>
+                      <button
+                        className="dash-sort-btn"
+                        onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                        aria-expanded={sortDropdownOpen}
+                        aria-label="Sort files"
+                      >
+                        <span>{currentSortLabel}</span>
+                        <ChevronDown size={15} strokeWidth={1.5} className="dash-sort-chevron" />
+                      </button>
 
-                    {sortDropdownOpen && (
-                      <div className="dash-sort-menu" role="menu">
-                        {SORT_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.id}
-                            className={`dash-sort-item ${sortBy === opt.id ? 'dash-sort-item--active' : ''}`}
-                            onClick={() => {
-                              setSortBy(opt.id);
-                              setSortDropdownOpen(false);
-                            }}
-                            role="menuitem"
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                      {sortDropdownOpen && (
+                        <div className="dash-sort-menu" role="menu">
+                          {SORT_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.id}
+                              className={`dash-sort-item ${sortBy === opt.id ? 'dash-sort-item--active' : ''}`}
+                              onClick={() => {
+                                setSortBy(opt.id);
+                                setSortDropdownOpen(false);
+                              }}
+                              role="menuitem"
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* View mode toggle */}
+                    <div className="dash-view-toggle">
+                      <button
+                        className={`dash-view-btn ${viewMode === 'list' ? 'dash-view-btn--active' : ''}`}
+                        onClick={() => setViewMode('list')}
+                        title="List view"
+                        aria-label="List view"
+                      >
+                        <List size={16} strokeWidth={1.5} />
+                      </button>
+                      <button
+                        className={`dash-view-btn ${viewMode === 'grid' ? 'dash-view-btn--active' : ''}`}
+                        onClick={() => setViewMode('grid')}
+                        title="Grid view"
+                        aria-label="Grid view"
+                      >
+                        <LayoutGrid size={16} strokeWidth={1.5} />
+                      </button>
+                    </div>
+
+                    {/* Refresh button */}
+                    <button
+                      className="dash-refresh-btn"
+                      onClick={isMyFilesView ? handleContentsRefresh : fetchAllFiles}
+                      title="Refresh"
+                      aria-label="Refresh"
+                    >
+                      <RefreshCw size={15} strokeWidth={1.5} />
+                    </button>
                   </div>
 
-                  {/* View mode toggle */}
-                  <div className="dash-view-toggle">
+                  <div className="dash-toolbar-ctas">
+                    {/* Create folder button — only in My Files */}
+                    {isMyFilesView && (
+                      <button
+                        className="dash-new-folder-btn"
+                        onClick={() => setCreateFolderOpen(true)}
+                        title="New folder"
+                        aria-label="New folder"
+                      >
+                        <FolderPlus size={15} strokeWidth={1.5} />
+                        <span>New folder</span>
+                      </button>
+                    )}
+
+                    {/* Hidden file input for native file browsing */}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      style={{ display: 'none' }}
+                      multiple
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          handleFilesUpload(e.target.files);
+                        }
+                      }}
+                    />
+
+                    {/* Upload file button — triggers native file browser directly */}
                     <button
-                      className={`dash-view-btn ${viewMode === 'list' ? 'dash-view-btn--active' : ''}`}
-                      onClick={() => setViewMode('list')}
-                      title="List view"
-                      aria-label="List view"
+                      className="dash-upload-btn"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      title={isUploading ? (uploadProgressText || 'Uploading...') : 'Upload file'}
+                      aria-label="Upload file"
                     >
-                      <List size={16} strokeWidth={1.5} />
-                    </button>
-                    <button
-                      className={`dash-view-btn ${viewMode === 'grid' ? 'dash-view-btn--active' : ''}`}
-                      onClick={() => setViewMode('grid')}
-                      title="Grid view"
-                      aria-label="Grid view"
-                    >
-                      <LayoutGrid size={16} strokeWidth={1.5} />
+                      {isUploading ? (
+                        <>
+                          <span className="dash-upload-spinner" />
+                          <span>{uploadProgressText || 'Uploading...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={15} strokeWidth={1.5} />
+                          <span>Upload file</span>
+                        </>
+                      )}
                     </button>
                   </div>
-
-                  {/* Refresh button */}
-                  <button
-                    className="dash-refresh-btn"
-                    onClick={isMyFilesView ? handleContentsRefresh : fetchAllFiles}
-                    title="Refresh"
-                    aria-label="Refresh"
-                  >
-                    <RefreshCw size={15} strokeWidth={1.5} />
-                  </button>
-
-                  {/* Create folder button — only in My Files */}
-                  {isMyFilesView && (
-                    <button
-                      className="dash-new-folder-btn"
-                      onClick={() => setCreateFolderOpen(true)}
-                      title="New folder"
-                      aria-label="New folder"
-                    >
-                      <FolderPlus size={14} strokeWidth={1.5} />
-                      <span>New folder</span>
-                    </button>
-                  )}
-
-                  {/* Hidden file input for native file browsing */}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    style={{ display: 'none' }}
-                    multiple
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        handleFilesUpload(e.target.files);
-                      }
-                    }}
-                  />
-
-                  {/* Upload file button — triggers native file browser directly */}
-                  <button
-                    className="dash-upload-btn"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    title={isUploading ? (uploadProgressText || 'Uploading...') : 'Upload file'}
-                    aria-label="Upload file"
-                  >
-                    {isUploading ? (
-                      <>
-                        <span className="dash-upload-spinner" />
-                        <span>{uploadProgressText || 'Uploading...'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload size={14} strokeWidth={1.5} />
-                        <span>Upload file</span>
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
 

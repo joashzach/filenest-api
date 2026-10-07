@@ -136,3 +136,21 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+@media (max-width: 480px) {
+  .folder-modal {
+    padding: 20px 16px;
+    max-width: calc(100% - 24px);
+    gap: 16px;
+  }
+
+  .folder-modal-footer {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .folder-modal-footer button {
+    width: 100%;
+    justify-content: center;
+  }
+}

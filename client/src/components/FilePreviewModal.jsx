@@ -305,8 +305,8 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
       >
         {/* Header: Filename only + X close button */}
         <div className="preview-header">
-          <h2 className="preview-filename" title={file.originalName}>
-            {file.originalName}
+          <h2 className="preview-filename" title={file.originalName || file.name || 'File'}>
+            {file.originalName || file.name || 'File'}
           </h2>
           <button
             ref={closeButtonRef}

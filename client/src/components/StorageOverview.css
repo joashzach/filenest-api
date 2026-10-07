@@ -207,3 +207,48 @@
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
+
+@media (max-width: 640px) {
+  .storage-header-card {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .storage-header-stat {
+    align-items: flex-start;
+  }
+
+  .storage-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .storage-largest-section {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .storage-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .storage-header-left {
+    gap: 12px;
+  }
+
+  .storage-title {
+    font-size: 15px;
+  }
+
+  .storage-stat-num {
+    font-size: 20px;
+  }
+
+  .storage-largest-row {
+    padding: 8px 6px;
+  }
+}

@@ -4,7 +4,7 @@
 
 .filelist-header {
   display: grid;
-  grid-template-columns: 1fr 52px 78px 96px 64px;
+  grid-template-columns: 1fr 52px 78px 96px 94px;
   gap: 16px;
   align-items: center;
   padding: 0 14px;
@@ -31,7 +31,7 @@
 
 .filelist-row {
   display: grid;
-  grid-template-columns: 1fr 52px 78px 96px 64px;
+  grid-template-columns: 1fr 52px 78px 96px 94px;
   gap: 16px;
   align-items: center;
   padding: 0 14px;
@@ -203,7 +203,8 @@
 @media (max-width: 900px) {
   .filelist-header,
   .filelist-row {
-    grid-template-columns: 1fr 52px 78px 64px;
+    grid-template-columns: 1fr 52px 78px 94px;
+    gap: 12px;
   }
   .filelist-th-date,
   .filelist-col-date {
@@ -214,10 +215,51 @@
 @media (max-width: 640px) {
   .filelist-header,
   .filelist-row {
-    grid-template-columns: 1fr 78px 64px;
+    grid-template-columns: 1fr 68px 94px;
+    gap: 10px;
+    padding: 0 10px;
   }
   .filelist-th-type,
   .filelist-col-type {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .filelist-header,
+  .filelist-row {
+    grid-template-columns: 1fr 58px 88px;
+    gap: 8px;
+    padding: 0 6px;
+  }
+  .filelist-row {
+    height: 46px;
+  }
+  .filelist-filename {
+    font-size: 13.5px;
+  }
+  .filelist-col-size {
+    font-size: 12px;
+    text-align: right;
+  }
+  .filelist-th-size {
+    text-align: right;
+  }
+  .filelist-action-btn {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 360px) {
+  .filelist-header,
+  .filelist-row {
+    grid-template-columns: 1fr 88px;
+    gap: 6px;
+    padding: 0 4px;
+  }
+  .filelist-th-size,
+  .filelist-col-size {
     display: none;
   }
 }

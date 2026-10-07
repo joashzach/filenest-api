@@ -1,4 +1,16 @@
-const API_URL = import.meta.env.VITE_API_URL;
+const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+function getApiUrl() {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host && host !== 'localhost' && host !== '127.0.0.1' && RAW_API_URL.includes('localhost')) {
+      return `${window.location.protocol}//${host}:3000/api`;
+    }
+  }
+  return RAW_API_URL;
+}
+
+const API_URL = getApiUrl();
 
 /**
  * Core API client. All backend requests go through here.

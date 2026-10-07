@@ -66,13 +66,20 @@
 .move-modal-breadcrumb {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   gap: 2px;
   padding: 8px 10px;
   background: var(--carbon);
   border: 1px solid var(--graphite);
   border-radius: var(--radius-md);
   min-height: 36px;
+}
+
+.move-modal-breadcrumb::-webkit-scrollbar {
+  display: none;
 }
 
 .move-modal-crumb-btn {
@@ -210,9 +217,22 @@
 
 @media (max-width: 480px) {
   .move-modal {
-    padding: 18px;
+    padding: 18px 14px;
+    max-height: calc(100vh - 28px);
   }
   .move-modal-list {
     max-height: 180px;
+  }
+  .move-modal-subtitle {
+    max-width: 170px;
+  }
+  .move-modal-footer {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .move-modal-footer button {
+    width: 100%;
+    justify-content: center;
+    height: 38px;
   }
 }

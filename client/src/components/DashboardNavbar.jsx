@@ -1,13 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Lock, LogOut } from 'lucide-react';
+import { Search, X, Lock, LogOut, Menu } from 'lucide-react';
 import './DashboardNavbar.css';
 
 /**
  * DashboardNavbar — 56px header with FileNest wordmark, centered search, and profile pill
  */
-export default function DashboardNavbar({ searchQuery, onSearchChange, onOpenSettings }) {
+export default function DashboardNavbar({
+  searchQuery,
+  onSearchChange,
+  onOpenSettings,
+  isMobileMenuOpen = false,
+  onToggleMobileMenu,
+}) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -35,6 +41,21 @@ export default function DashboardNavbar({ searchQuery, onSearchChange, onOpenSet
     <header className="dash-navbar">
       <div className="dash-navbar-grid">
         <div className="dash-navbar-left">
+          {onToggleMobileMenu && (
+            <button
+              type="button"
+              className="dash-mobile-menu-btn"
+              onClick={onToggleMobileMenu}
+              aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={isMobileMenuOpen}
+            >
+              {isMobileMenuOpen ? (
+                <X size={18} strokeWidth={1.5} />
+              ) : (
+                <Menu size={18} strokeWidth={1.5} />
+              )}
+            </button>
+          )}
           <span
             className="dash-navbar-brand"
             onClick={() => navigate('/dashboard')}

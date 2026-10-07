@@ -112,3 +112,23 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+@media (max-width: 480px) {
+  .file-card {
+    padding: 12px 10px;
+  }
+  .file-card-name {
+    font-size: 13px;
+  }
+  .file-card-meta {
+    font-size: 11.5px;
+    gap: 4px;
+  }
+  .file-card-actions {
+    padding-top: 8px;
+  }
+  .file-card-btn {
+    width: 28px;
+    height: 28px;
+  }
+}

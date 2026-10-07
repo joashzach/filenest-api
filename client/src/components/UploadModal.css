@@ -363,3 +363,25 @@
 @keyframes uploadSpin {
   to { transform: rotate(360deg); }
 }
+
+@media (max-width: 480px) {
+  .upload-modal {
+    padding: 18px 14px;
+    max-height: calc(100vh - 28px);
+  }
+
+  .upload-dropzone {
+    padding: 24px 12px;
+  }
+
+  .upload-modal-footer {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .upload-btn-cancel,
+  .upload-btn-start {
+    width: 100%;
+    height: 38px;
+  }
+}
