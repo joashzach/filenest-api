@@ -1,24 +1,75 @@
+import React, { useState } from 'react';
 import { Folder, Pencil, Trash2 } from 'lucide-react';
-import { formatRelativeTime, formatFolderSize } from '../utils/fileUtils';
+import { formatRelativeTime, formatFolderSize, formatDate, formatTime } from '../utils/fileUtils';
 import './FolderCard.css';
 
 /**
  * FolderCard — Grid view card for a folder.
- * Mirrors file-card styling so folders look native in grid mode.
+ * Supports drag & drop: draggable to move into other folders, droppable to receive files/folders.
  *
  * Props:
  *   folder: { _id, name, createdAt, size }
  *   onOpen(folder): navigate into folder
  *   onRename(folder): open rename modal
  *   onDelete(folder): open delete modal
+ *   onDropItem(targetFolder, itemData): drop item into this folder
  *   disabled: boolean
  */
-export default function FolderCard({ folder, onOpen, onRename, onDelete, disabled = false }) {
+export default function FolderCard({
+  folder,
+  onOpen,
+  onRename,
+  onDelete,
+  onDropItem,
+  disabled = false,
+}) {
+  const [isDragOver, setIsDragOver] = useState(false);
   const sizeDisplay = formatFolderSize(folder?.size);
+
+  function handleDragStart(e) {
+    const payload = JSON.stringify({ itemType: 'folder', id: folder._id, name: folder.name });
+    e.dataTransfer.setData('application/x-filenest-item', payload);
+    e.dataTransfer.setData('application/json', payload);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    try {
+      const raw = e.dataTransfer.getData('application/x-filenest-item') || e.dataTransfer.getData('application/json');
+      if (raw) {
+        const data = JSON.parse(raw);
+        onDropItem && onDropItem(folder, data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   return (
     <div
-      className="file-card folder-card"
+      className={`file-card folder-card ${isDragOver ? 'folder-card--drag-over' : ''}`}
+      style={{ flexShrink: 0, flexGrow: 0, alignSelf: 'flex-start', height: 'auto' }}
+      draggable={true}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       onClick={() => onOpen && onOpen(folder)}
       tabIndex={0}
       role="article"
@@ -42,7 +93,12 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, disable
         <div className="file-card-meta">
           <span className="file-card-size">{sizeDisplay}</span>
           <span className="file-card-sep">•</span>
-          <span className="file-card-date">{formatRelativeTime(folder.createdAt)}</span>
+          <span
+            className="file-card-date"
+            title={folder.createdAt ? `${formatDate(folder.createdAt)} ${formatTime(folder.createdAt)}` : ''}
+          >
+            {formatRelativeTime(folder.createdAt || folder._id)}
+          </span>
         </div>
       </div>
 

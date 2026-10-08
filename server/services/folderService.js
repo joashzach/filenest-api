@@ -81,6 +81,7 @@ exports.getFoldersService = async (userId, parent) => {
   const folderSizeMap = await calculateFolderSizes(userId);
   const foldersWithSizes = folders.map((f) => ({
     ...f,
+    createdAt: f.createdAt || (f._id ? new Date(parseInt(f._id.toString().substring(0, 8), 16) * 1000) : null),
     size: folderSizeMap.get(f._id.toString()) || 0,
   }));
 
@@ -116,6 +117,7 @@ exports.getFolderContentsService = async (folderId, userId) => {
 
   const foldersWithSizes = folders.map((f) => ({
     ...f,
+    createdAt: f.createdAt || (f._id ? new Date(parseInt(f._id.toString().substring(0, 8), 16) * 1000) : null),
     size: folderSizeMap.get(f._id.toString()) || 0,
   }));
 
@@ -123,6 +125,7 @@ exports.getFolderContentsService = async (folderId, userId) => {
   if (folder) {
     folderWithTotalSize = {
       ...folder,
+      createdAt: folder.createdAt || (folder._id ? new Date(parseInt(folder._id.toString().substring(0, 8), 16) * 1000) : null),
       size: folderSizeMap.get(folder._id.toString()) || 0,
     };
   }
@@ -197,4 +200,48 @@ exports.deleteFolderService = async (folderId, userId) => {
     owner: userId,
     _id: { $in: folderIds },
   });
+};
+
+// MOVE FOLDER SERVICE
+exports.moveFolderService = async (folderId, targetParentId, userId) => {
+  if (folderId && targetParentId && folderId.toString() === targetParentId.toString()) {
+    throw new ApiError("Cannot move a folder into itself!", 400);
+  }
+
+  const folder = await Folder.findOne({
+    _id: folderId,
+    owner: userId,
+  });
+
+  if (!folder) {
+    throw new ApiError("Folder does not exist!", 404);
+  }
+
+  if (targetParentId) {
+    const targetFolder = await Folder.findOne({
+      _id: targetParentId,
+      owner: userId,
+    });
+
+    if (!targetFolder) {
+      throw new ApiError("Target folder does not exist!", 404);
+    }
+
+    // Prevent circular moves: targetFolder cannot be a descendant of folderId
+    let curr = targetFolder;
+    while (curr && curr.parent) {
+      if (curr.parent.toString() === folderId.toString()) {
+        throw new ApiError("Cannot move a folder into one of its subfolders!", 400);
+      }
+      curr = await Folder.findOne({
+        _id: curr.parent,
+        owner: userId,
+      });
+    }
+  }
+
+  folder.parent = targetParentId || null;
+  await folder.save();
+
+  return folder;
 };

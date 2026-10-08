@@ -23,9 +23,27 @@ export function formatFolderSize(bytes) {
   return formatSize(bytes);
 }
 
+function parseDate(dateInput) {
+  if (!dateInput) return null;
+  if (dateInput instanceof Date) {
+    return isNaN(dateInput.getTime()) ? null : dateInput;
+  }
+  // If it's a 24-hex-char MongoDB ObjectId string
+  if (typeof dateInput === 'string' && /^[0-9a-fA-F]{24}$/.test(dateInput)) {
+    try {
+      const d = new Date(parseInt(dateInput.substring(0, 8), 16) * 1000);
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  }
+  const d = new Date(dateInput);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export function formatDate(dateString) {
-  if (!dateString) return '—';
-  const date = new Date(dateString);
+  const date = parseDate(dateString);
+  if (!date) return '—';
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -34,8 +52,8 @@ export function formatDate(dateString) {
 }
 
 export function formatTime(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
+  const date = parseDate(dateString);
+  if (!date) return '';
   return date.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -43,22 +61,32 @@ export function formatTime(dateString) {
 }
 
 export function formatRelativeTime(dateString) {
-  if (!dateString) return '—';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now - date) / 1000);
+  const date = parseDate(dateString);
+  if (!date) return '—';
 
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  // If clock skew or future timestamp
+  if (diffInSeconds < 0) return 'Just now';
+
+  // Less than 60 seconds
   if (diffInSeconds < 60) return 'Just now';
+
+  // Less than 60 minutes
   const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}h ago`;
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 30) return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
-  const diffInMonths = Math.floor(diffInDays / 30);
-  if (diffInMonths < 12) return `${diffInMonths} ${diffInMonths === 1 ? 'month' : 'months'} ago`;
-  const diffInYears = Math.floor(diffInDays / 365);
-  return `${diffInYears} ${diffInYears === 1 ? 'year' : 'years'} ago`;
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} ${diffInMinutes === 1 ? 'min' : 'mins'} ago`;
+  }
+
+  // Less than 24 hours
+  const diffInHours = Math.floor(diffInSeconds / 3600);
+  if (diffInHours < 24) {
+    return `${diffInHours} ${diffInHours === 1 ? 'hr' : 'hrs'} ago`;
+  }
+
+  // At or after 24 hours, show actual date
+  return formatDate(date);
 }
 
 export function getFileCategory(file) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { getFiles, getDownloadUrl, deleteFile, getUploadUrl, uploadToS3, confirmUpload } from '../services/FileApi';
-import { getRootContents, getFolderContents } from '../services/FolderApi';
-import { getFileCategory, getFileExtension, formatSize, formatRelativeTime } from '../utils/fileUtils';
+import { getFiles, getDownloadUrl, deleteFile, getUploadUrl, uploadToS3, confirmUpload, moveFile } from '../services/FileApi';
+import { getRootContents, getFolderContents, moveFolder } from '../services/FolderApi';
+import { getFileCategory, getFileExtension, formatSize, formatRelativeTime, formatDate, formatTime } from '../utils/fileUtils';
 import DashboardNavbar from '../components/DashboardNavbar';
 import Sidebar from '../components/Sidebar';
 import FileCard from '../components/FileCard';
@@ -15,7 +15,7 @@ import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import DeleteFolderModal from '../components/DeleteFolderModal';
 import CreateFolderModal from '../components/CreateFolderModal';
 import RenameFolderModal from '../components/RenameFolderModal';
-import MoveFileModal from '../components/MoveFileModal';
+import RenameFileModal from '../components/RenameFileModal';
 import UserSettingsModal from '../components/UserSettingsModal';
 import StorageOverview from '../components/StorageOverview';
 import {
@@ -33,7 +33,7 @@ import {
   Video,
   Download,
   Trash2,
-  MoveRight,
+  Pencil,
 } from 'lucide-react';
 import './Dashboard.css';
 
@@ -72,7 +72,7 @@ function renderCategoryHeaderIcon(cat) {
  * Uses the same filelist-row / filelist-col classes as FileList.
  * Defined at module level (not inside Dashboard) to avoid recreating on every render.
  */
-function FolderViewFileRow({ file, isDownloading, isDeleting, onPreview, onDownload, onDelete, onMove }) {
+function FolderViewFileRow({ file, isDownloading, isDeleting, onPreview, onDownload, onDelete, onRename }) {
   function renderIcon() {
     const cat = getFileCategory(file);
     switch (cat) {
@@ -88,7 +88,15 @@ function FolderViewFileRow({ file, isDownloading, isDeleting, onPreview, onDownl
   return (
     <div
       className="filelist-row"
+      style={{ height: '48px', minHeight: '48px', maxHeight: '48px', flexShrink: 0, flexGrow: 0, boxSizing: 'border-box' }}
       role="row"
+      draggable={true}
+      onDragStart={(e) => {
+        const payload = JSON.stringify({ itemType: 'file', id: file._id, name: file.originalName });
+        e.dataTransfer.setData('application/x-filenest-item', payload);
+        e.dataTransfer.setData('application/json', payload);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
       onClick={() => onPreview && onPreview(file)}
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onPreview && onPreview(file)}
@@ -102,17 +110,24 @@ function FolderViewFileRow({ file, isDownloading, isDeleting, onPreview, onDownl
       </div>
       <div className="filelist-col filelist-col-type">{ext}</div>
       <div className="filelist-col filelist-col-size">{formatSize(file.size)}</div>
-      <div className="filelist-col filelist-col-date">{formatRelativeTime(file.createdAt)}</div>
+      <div
+        className="filelist-col filelist-col-date"
+        title={file.createdAt ? `${formatDate(file.createdAt)} ${formatTime(file.createdAt)}` : ''}
+      >
+        {formatRelativeTime(file.createdAt || file._id)}
+      </div>
       <div className="filelist-col filelist-col-actions" onClick={(e) => e.stopPropagation()}>
-        <button
-          className="filelist-action-btn"
-          title="Move file"
-          aria-label="Move file"
-          onClick={() => onMove && onMove(file)}
-          disabled={isDownloading || isDeleting}
-        >
-          <MoveRight size={14} strokeWidth={1.5} />
-        </button>
+        {onRename && (
+          <button
+            className="filelist-action-btn"
+            title="Rename file"
+            aria-label="Rename file"
+            onClick={() => onRename(file)}
+            disabled={isDownloading || isDeleting}
+          >
+            <Pencil size={13} strokeWidth={1.5} />
+          </button>
+        )}
         <button
           className="filelist-action-btn"
           title="Download file"
@@ -172,7 +187,7 @@ export default function Dashboard() {
   const fileInputRef = useRef(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [deleteConfirmFile, setDeleteConfirmFile] = useState(null);
-  const [moveFile, setMoveFile] = useState(null);
+  const [renameFileTarget, setRenameFileTarget] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   // ── Folder modals ────────────────────────────────────────────────────────────
@@ -204,7 +219,7 @@ export default function Dashboard() {
   const isAnyOverlayOpen = Boolean(
     previewFile ||
     deleteConfirmFile ||
-    moveFile ||
+    renameFileTarget ||
     settingsModalOpen ||
     createFolderOpen ||
     renameFolderTarget ||
@@ -294,7 +309,8 @@ export default function Dashboard() {
     function handleWindowDragEnter(e) {
       e.preventDefault();
       dragCounter++;
-      if (e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
+      const types = Array.from(e.dataTransfer.types || []);
+      if (types.includes('Files') && !types.includes('application/x-filenest-item')) {
         setIsWindowDragOver(true);
       }
     }
@@ -316,6 +332,10 @@ export default function Dashboard() {
       e.preventDefault();
       dragCounter = 0;
       setIsWindowDragOver(false);
+      const types = Array.from(e.dataTransfer.types || []);
+      if (types.includes('application/x-filenest-item')) {
+        return;
+      }
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         handleFilesUploadRef.current?.(e.dataTransfer.files);
       }
@@ -420,6 +440,34 @@ export default function Dashboard() {
     await Promise.all([fetchCurrentContents(), fetchAllFiles(), fetchRootCounts()]);
   }
 
+  // ── Drag & drop move handler for files & folders ────────────────────────────
+  const handleDropItemOnFolder = useCallback(
+    async (targetFolder, itemData) => {
+      if (!itemData || !itemData.id) return;
+      const targetFolderId = targetFolder?._id || null;
+      const targetFolderName = targetFolder?.name || 'My Files';
+
+      // Cannot move folder into itself
+      if (itemData.itemType === 'folder' && itemData.id === targetFolderId) {
+        return;
+      }
+
+      try {
+        if (itemData.itemType === 'file') {
+          await moveFile(itemData.id, targetFolderId);
+          showNotification(`Moved "${itemData.name}" into "${targetFolderName}".`);
+        } else if (itemData.itemType === 'folder') {
+          await moveFolder(itemData.id, targetFolderId);
+          showNotification(`Moved folder "${itemData.name}" into "${targetFolderName}".`);
+        }
+        await handleContentsRefresh();
+      } catch (err) {
+        showNotification(err.message || 'Failed to move item.', 'error');
+      }
+    },
+    [fetchCurrentContents, fetchAllFiles, fetchRootCounts]
+  );
+
   // ── Direct file upload handler (native file browsing) ─────────────────────────
   async function handleFilesUpload(filesList) {
     if (!filesList || filesList.length === 0 || isUploading) return;
@@ -427,15 +475,28 @@ export default function Dashboard() {
     setIsUploading(true);
 
     try {
+      const CONCURRENCY = 3;
+      let completedCount = 0;
       let successCount = 0;
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (files.length > 1) {
-          setUploadProgressText(`Uploading ${i + 1}/${files.length}...`);
-        } else {
-          setUploadProgressText(`Uploading...`);
-        }
 
+      // Track individual file progress for smooth aggregate display
+      const progressMap = new Array(files.length).fill(0);
+
+      const updateProgressDisplay = () => {
+        if (files.length === 1) {
+          const pct = progressMap[0] || 0;
+          setUploadProgressText(`Uploading ${pct}%`);
+        } else {
+          const totalProgress = Math.round(
+            progressMap.reduce((acc, curr) => acc + curr, 0) / files.length
+          );
+          setUploadProgressText(`${completedCount}/${files.length} • ${totalProgress}%`);
+        }
+      };
+
+      updateProgressDisplay();
+
+      const uploadSingleFile = async (file, index) => {
         const originalName = file.name;
         const mimeType = file.type || 'application/octet-stream';
         const size = file.size;
@@ -447,14 +508,39 @@ export default function Dashboard() {
           throw new Error(`Failed to authorize upload for ${originalName}`);
         }
 
-        // 2. Upload directly to S3
-        await uploadToS3(uploadUrl, file);
+        // 2. Upload directly to S3 with live progress
+        await uploadToS3(
+          uploadUrl,
+          file,
+          (pct) => {
+            progressMap[index] = pct;
+            updateProgressDisplay();
+          },
+          mimeType
+        );
 
         // 3. Confirm metadata
         const targetFolder = isMyFilesView ? currentFolderId : null;
         await confirmUpload({ originalName, mimeType, size, key, folder: targetFolder || null });
+
+        completedCount++;
         successCount++;
-      }
+        progressMap[index] = 100;
+        updateProgressDisplay();
+      };
+
+      // Work through files with concurrency limit
+      const queue = files.map((file, idx) => ({ file, idx }));
+      const workers = Array.from({ length: Math.min(CONCURRENCY, files.length) }, async () => {
+        while (queue.length > 0) {
+          const item = queue.shift();
+          if (item) {
+            await uploadSingleFile(item.file, item.idx);
+          }
+        }
+      });
+
+      await Promise.all(workers);
 
       await handleContentsRefresh();
       showNotification(
@@ -538,9 +624,11 @@ export default function Dashboard() {
     }
 
     result.sort((a, b) => {
+      const aDate = new Date(a.createdAt || (a._id ? parseInt(a._id.toString().substring(0, 8), 16) * 1000 : 0));
+      const bDate = new Date(b.createdAt || (b._id ? parseInt(b._id.toString().substring(0, 8), 16) * 1000 : 0));
       if (sortBy === 'name-desc') return (b.name || '').localeCompare(a.name || '');
-      if (sortBy === 'oldest') return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
-      if (sortBy === 'newest') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      if (sortBy === 'oldest') return aDate - bDate;
+      if (sortBy === 'newest') return bDate - aDate;
       // name-asc + anything else: alphabetical
       return (a.name || '').localeCompare(b.name || '');
     });
@@ -669,6 +757,7 @@ export default function Dashboard() {
               onOpen={handleOpenFolder}
               onRename={setRenameFolderTarget}
               onDelete={setDeleteFolderTarget}
+              onDropItem={handleDropItemOnFolder}
             />
           ))}
           {/* Then files */}
@@ -679,7 +768,7 @@ export default function Dashboard() {
               onDownload={handleDownload}
               onDelete={(f) => setDeleteConfirmFile(f)}
               onPreview={(f) => setPreviewFile(f)}
-              onMove={(f) => setMoveFile(f)}
+              onRename={(f) => setRenameFileTarget(f)}
               isDownloading={downloadingId === file._id}
               isDeleting={deletingId === file._id}
             />
@@ -708,6 +797,7 @@ export default function Dashboard() {
               onOpen={handleOpenFolder}
               onRename={setRenameFolderTarget}
               onDelete={setDeleteFolderTarget}
+              onDropItem={handleDropItemOnFolder}
             />
           ))}
           {/* Then files */}
@@ -720,7 +810,7 @@ export default function Dashboard() {
               onPreview={setPreviewFile}
               onDownload={handleDownload}
               onDelete={setDeleteConfirmFile}
-              onMove={setMoveFile}
+              onRename={setRenameFileTarget}
             />
           ))}
         </div>
@@ -792,6 +882,7 @@ export default function Dashboard() {
                     <FolderBreadcrumb
                       breadcrumbs={breadcrumbs}
                       onNavigate={handleBreadcrumbNavigate}
+                      onDropItem={handleDropItemOnFolder}
                     />
                   ) : (
                     <nav className="folder-breadcrumb" aria-label="Category view">
@@ -900,7 +991,7 @@ export default function Dashboard() {
 
                     {/* Upload file button — triggers native file browser directly */}
                     <button
-                      className="dash-upload-btn"
+                      className={`dash-upload-btn ${isUploading ? 'dash-upload-btn--uploading' : ''}`}
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploading}
                       title={isUploading ? (uploadProgressText || 'Uploading...') : 'Upload file'}
@@ -909,12 +1000,12 @@ export default function Dashboard() {
                       {isUploading ? (
                         <>
                           <span className="dash-upload-spinner" />
-                          <span>{uploadProgressText || 'Uploading...'}</span>
+                          <span className="dash-upload-btn-text">{uploadProgressText || 'Uploading...'}</span>
                         </>
                       ) : (
                         <>
                           <Upload size={15} strokeWidth={1.5} />
-                          <span>Upload file</span>
+                          <span className="dash-upload-btn-text">Upload file</span>
                         </>
                       )}
                     </button>
@@ -939,7 +1030,7 @@ export default function Dashboard() {
                           onDownload={handleDownload}
                           onDelete={(f) => setDeleteConfirmFile(f)}
                           onPreview={(f) => setPreviewFile(f)}
-                          onMove={(f) => setMoveFile(f)}
+                          onRename={(f) => setRenameFileTarget(f)}
                           isDownloading={downloadingId === file._id}
                           isDeleting={deletingId === file._id}
                         />
@@ -955,7 +1046,7 @@ export default function Dashboard() {
                     onDownload={handleDownload}
                     onDelete={(f) => setDeleteConfirmFile(f)}
                     onPreview={(f) => setPreviewFile(f)}
-                    onMove={(f) => setMoveFile(f)}
+                    onRename={(f) => setRenameFileTarget(f)}
                     downloadingId={downloadingId}
                     deletingId={deletingId}
                   />
@@ -1015,21 +1106,14 @@ export default function Dashboard() {
         }}
       />
 
-      {/* Move File Modal */}
-      <MoveFileModal
-        isOpen={Boolean(moveFile)}
-        file={moveFile}
-        currentFolderId={
-          moveFile
-            ? typeof moveFile.folder === 'object' && moveFile.folder !== null
-              ? moveFile.folder._id
-              : moveFile.folder || null
-            : null
-        }
-        onClose={() => setMoveFile(null)}
+      {/* Rename File Modal */}
+      <RenameFileModal
+        isOpen={Boolean(renameFileTarget)}
+        file={renameFileTarget}
+        onClose={() => setRenameFileTarget(null)}
         onSuccess={() => {
           handleContentsRefresh();
-          showNotification(`Moved ${moveFile?.originalName || 'file'}.`);
+          showNotification(`File renamed successfully!`);
         }}
       />
 

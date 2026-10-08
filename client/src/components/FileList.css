@@ -1,20 +1,23 @@
 .filelist-container {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .filelist-header {
   display: grid;
-  grid-template-columns: 1fr 52px 78px 96px 94px;
+  grid-template-columns: 1fr 52px 78px 106px 94px;
   gap: 16px;
   align-items: center;
   padding: 0 14px;
   height: 40px;
   border-bottom: 1px solid #202124;
   user-select: none;
-  position: sticky;
-  top: 60px;
+  flex-shrink: 0;
   background-color: #0c0c0d;
-  z-index: 10;
 }
 
 .filelist-th {
@@ -27,15 +30,37 @@
 .filelist-rows {
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
+}
+
+.filelist-rows > * {
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  box-sizing: border-box !important;
 }
 
 .filelist-row {
   display: grid;
-  grid-template-columns: 1fr 52px 78px 96px 94px;
+  grid-template-columns: 1fr 52px 78px 106px 94px;
   gap: 16px;
   align-items: center;
   padding: 0 14px;
-  height: 48px;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  box-sizing: border-box !important;
   border-bottom: 1px solid #202124;
   background-color: transparent;
   transition: background-color 120ms ease;
@@ -232,8 +257,13 @@
     gap: 8px;
     padding: 0 6px;
   }
-  .filelist-row {
-    height: 46px;
+  .filelist-row,
+  .filelist-rows > * {
+    height: 46px !important;
+    min-height: 46px !important;
+    max-height: 46px !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
   }
   .filelist-filename {
     font-size: 13.5px;

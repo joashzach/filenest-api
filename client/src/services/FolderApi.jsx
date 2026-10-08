@@ -51,3 +51,14 @@ export async function deleteFolder(folderId) {
     auth: true,
   });
 }
+
+/**
+ * Move a folder to another parent folder (or to root: parent = null)
+ */
+export async function moveFolder(folderId, parentFolderId) {
+  return request(`/folders/${folderId}/move`, {
+    method: 'PATCH',
+    auth: true,
+    body: { parent: parentFolderId || null },
+  });
+}

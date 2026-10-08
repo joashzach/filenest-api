@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getDownloadUrl } from '../services/FileApi';
-import { X } from 'lucide-react';
+import { X, FileText } from 'lucide-react';
 import './FilePreviewModal.css';
 
 /**
@@ -8,7 +8,7 @@ import './FilePreviewModal.css';
  */
 function detectFileType(file) {
   if (!file) return { type: 'unknown', ext: '' };
-  const name = (file.originalName || '').toLowerCase();
+  const name = (file.originalName || file.name || '').toLowerCase();
   const ext = name.split('.').pop() || '';
   const mime = (file.mimeType || '').toLowerCase();
 
@@ -25,11 +25,18 @@ function detectFileType(file) {
     return { type: 'pdf', ext };
   }
 
-  // Presentations & Office documents (pptx, ppt, docx, doc, xlsx, xls)
+  // Presentations: PPTX / PPT / Keynote
   if (
-    ['pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls'].includes(ext) ||
+    ['pptx', 'ppt', 'pps', 'ppsx', 'odp'].includes(ext) ||
     mime.includes('presentation') ||
-    mime.includes('powerpoint') ||
+    mime.includes('powerpoint')
+  ) {
+    return { type: 'pptx', ext };
+  }
+
+  // Other Office documents (docx, doc, xlsx, xls)
+  if (
+    ['docx', 'doc', 'xlsx', 'xls', 'odt', 'ods', 'rtf'].includes(ext) ||
     mime.includes('wordprocessingml') ||
     mime.includes('spreadsheetml')
   ) {
@@ -72,9 +79,112 @@ function detectFileType(file) {
 }
 
 /**
+ * In-browser PPTX slide renderer powered by @aiden0z/pptx-renderer
+ */
+function PptxPreview({ url, fileName, onLoaded, onError }) {
+  const containerRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let viewer = null;
+
+    async function loadPresentation() {
+      try {
+        setLoading(true);
+        setErrorMsg(null);
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Could not download presentation file');
+        const buffer = await response.arrayBuffer();
+
+        if (cancelled || !containerRef.current) return;
+
+        const { PptxViewer, RECOMMENDED_ZIP_LIMITS } = await import('@aiden0z/pptx-renderer');
+        if (cancelled || !containerRef.current) return;
+
+        containerRef.current.innerHTML = '';
+        viewer = await PptxViewer.open(buffer, containerRef.current, {
+          zipLimits: RECOMMENDED_ZIP_LIMITS,
+          fitMode: 'contain',
+          renderMode: 'list',
+          listOptions: {
+            windowed: true,
+            initialSlides: 4,
+            batchSize: 4,
+            showSlideLabels: true,
+          },
+        });
+
+        if (cancelled) {
+          viewer.destroy();
+          return;
+        }
+
+        setLoading(false);
+        onLoaded && onLoaded();
+      } catch (err) {
+        console.error('Failed to render presentation:', err);
+        if (!cancelled) {
+          setErrorMsg(err.message || 'Unable to render presentation slides');
+          setLoading(false);
+          onError && onError(err);
+        }
+      }
+    }
+
+    loadPresentation();
+
+    return () => {
+      cancelled = true;
+      if (viewer) {
+        try {
+          viewer.destroy();
+        } catch (e) {}
+      }
+    };
+  }, [url]);
+
+  return (
+    <div className="preview-pptx-scroll">
+      {loading && (
+        <div className="preview-pptx-loading">
+          <span className="file-card-spinner" />
+          <span className="preview-status-text">Rendering presentation slides...</span>
+        </div>
+      )}
+      {errorMsg ? (
+        <div className="preview-office-container">
+          <div className="preview-office-card">
+            <FileText size={44} strokeWidth={1.5} className="preview-office-icon" />
+            <div className="preview-office-meta">
+              <span className="preview-office-name" title={fileName}>{fileName}</span>
+              <span className="preview-office-badge">PPTX</span>
+            </div>
+            <p className="preview-office-hint">
+              This presentation file cannot be rendered directly in the browser.
+              Download the file to view it in its native application.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div ref={containerRef} className="preview-pptx-slides" />
+      )}
+    </div>
+  );
+}
+
+/**
  * FilePreviewModal — Displays files directly with loading feedback for all media types
  */
-export default function FilePreviewModal({ file, isOpen, onClose }) {
+export default function FilePreviewModal({
+  file,
+  isOpen,
+  onClose,
+  onDownload,
+  isDownloading = false,
+}) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [textContent, setTextContent] = useState(null);
   const [isTruncated, setIsTruncated] = useState(false);
@@ -177,6 +287,9 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
             setIsTruncated(truncated);
             setContentLoaded(true);
           }
+        } else if (typeInfo.type === 'pdf' || typeInfo.type === 'pptx' || typeInfo.type === 'office') {
+          // PDF, PPTX and Office files initialize immediately without blocking text decode
+          setContentLoaded(true);
         }
       })
       .catch((err) => {
@@ -190,17 +303,8 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
         }
       });
 
-    // Safety timeout: If content is still not marked loaded after 14s, hide the overlay
-    const safetyTimer = setTimeout(() => {
-      setContentLoaded((curr) => {
-        if (!curr) return true;
-        return curr;
-      });
-    }, 14000);
-
     return () => {
       controller.abort();
-      clearTimeout(safetyTimer);
     };
   }, [file, isOpen]);
 
@@ -219,8 +323,13 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
       case 'image':
         return (
           <img
+            ref={(img) => {
+              if (img && img.complete && img.naturalWidth > 0 && !contentLoaded) {
+                setContentLoaded(true);
+              }
+            }}
             src={previewUrl}
-            alt={file.originalName}
+            alt={file.originalName || file.name || 'Image preview'}
             className={`preview-image ${contentLoaded ? 'ready' : 'loading'}`}
             onLoad={() => setContentLoaded(true)}
             onError={() => setError(true)}
@@ -229,26 +338,51 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
 
       case 'pdf':
         return (
-          <iframe
-            src={`${previewUrl}#toolbar=0`}
-            className={`preview-frame ${contentLoaded ? 'ready' : 'loading'}`}
-            title={file.originalName}
-            onLoad={() => setContentLoaded(true)}
+          <div className="preview-pdf-wrapper">
+            <object
+              data={`${previewUrl}#toolbar=1`}
+              type="application/pdf"
+              className="preview-pdf-object"
+              title={file.originalName || file.name || 'PDF Document'}
+            >
+              <iframe
+                src={`${previewUrl}#toolbar=1`}
+                className="preview-frame ready"
+                title={file.originalName || file.name || 'PDF Document'}
+              />
+            </object>
+          </div>
+        );
+
+      case 'pptx':
+        return (
+          <PptxPreview
+            url={previewUrl}
+            fileName={file.originalName || file.name}
+            onLoaded={() => setContentLoaded(true)}
             onError={() => setError(true)}
           />
         );
 
       case 'office':
         return (
-          <iframe
-            src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewUrl)}&embedded=true`}
-            className={`preview-frame ${contentLoaded ? 'ready' : 'loading'}`}
-            title={file.originalName}
-            allow="autoplay; fullscreen"
-            loading="eager"
-            onLoad={() => setContentLoaded(true)}
-            onError={() => setError(true)}
-          />
+          <div className="preview-office-container">
+            <div className="preview-office-card">
+              <FileText size={44} strokeWidth={1.5} className="preview-office-icon" />
+              <div className="preview-office-meta">
+                <span className="preview-office-name" title={file.originalName || file.name}>
+                  {file.originalName || file.name}
+                </span>
+                <span className="preview-office-badge">
+                  {(typeInfo.ext || 'doc').toUpperCase()}
+                </span>
+              </div>
+              <p className="preview-office-hint">
+                This format can't be rendered directly in the browser.
+                Download the file to view it in its native application.
+              </p>
+            </div>
+          </div>
         );
 
       case 'video':
@@ -289,7 +423,24 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
         );
 
       default:
-        return <span className="preview-fallback-text">No preview available</span>;
+        return (
+          <div className="preview-office-container">
+            <div className="preview-office-card">
+              <FileText size={44} strokeWidth={1.5} className="preview-office-icon" />
+              <div className="preview-office-meta">
+                <span className="preview-office-name" title={file.originalName || file.name}>
+                  {file.originalName || file.name}
+                </span>
+                <span className="preview-office-badge">
+                  {(typeInfo.ext || 'FILE').toUpperCase()}
+                </span>
+              </div>
+              <p className="preview-office-hint">
+                Direct in-browser preview is not available for this file type.
+              </p>
+            </div>
+          </div>
+        );
     }
   }
 
@@ -301,21 +452,23 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
         className="preview-modal"
         ref={modalRef}
         onClick={(e) => e.stopPropagation()}
-        aria-label={file.originalName}
+        aria-label={file.originalName || file.name || 'File Preview'}
       >
-        {/* Header: Filename only + X close button */}
+        {/* Header: Filename + Action buttons + X close button */}
         <div className="preview-header">
           <h2 className="preview-filename" title={file.originalName || file.name || 'File'}>
             {file.originalName || file.name || 'File'}
           </h2>
-          <button
-            ref={closeButtonRef}
-            className="preview-close-btn"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X size={16} strokeWidth={1.5} />
-          </button>
+          <div className="preview-header-actions">
+            <button
+              ref={closeButtonRef}
+              className="preview-close-btn"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              <X size={16} strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
 
         {/* Preview Area: Contained direct view */}

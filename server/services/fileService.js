@@ -155,3 +155,24 @@ exports.moveFileService = async (fileId, folderId, userId) => {
 
   return file;
 };
+
+// RENAME FILE SERVICE
+exports.renameFileService = async (fileId, newName, userId) => {
+  const file = await File.findOne({
+    _id: fileId,
+    owner: userId,
+  });
+
+  if (!file) {
+    throw new ApiError("File does not exist!", 404);
+  }
+
+  if (!newName || !newName.trim()) {
+    throw new ApiError("File name is required!", 400);
+  }
+
+  file.originalName = newName.trim();
+  await file.save();
+
+  return file;
+};

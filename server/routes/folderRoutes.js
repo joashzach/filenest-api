@@ -5,7 +5,8 @@ const {
   getFolders,
   getFolderContents,
   renameFolder,
-  deleteFolder
+  deleteFolder,
+  moveFolder,
 } = require("../controllers/folderController");
 const router = express.Router();
 
@@ -13,6 +14,7 @@ router.post("/", protect, createFolder);
 router.get("/", protect, getFolders);
 router.get("/contents", protect, getFolderContents);
 router.get("/:folderId/contents", protect, getFolderContents);
+router.patch("/:folderId/move", protect, moveFolder);
 router
   .route("/:folderId")
   .patch(protect, renameFolder)

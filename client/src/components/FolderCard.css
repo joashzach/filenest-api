@@ -3,6 +3,14 @@
  */
 
 .folder-card {
+  width: 230px;
+  min-width: 230px;
+  max-width: 230px;
+  flex-shrink: 0;
+  flex-grow: 0;
+  align-self: flex-start;
+  height: auto;
+  box-sizing: border-box;
   cursor: pointer;
 }
 
@@ -13,4 +21,18 @@
 .folder-card-badge {
   color: #85878c;
   font-style: normal;
+}
+
+.folder-card--drag-over {
+  border-color: #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.08) !important;
+  box-shadow: 0 0 0 1px #3b82f6, 0 0 16px rgba(59, 130, 246, 0.2);
+}
+
+@media (max-width: 480px) {
+  .folder-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
 }

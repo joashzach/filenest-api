@@ -1,4 +1,4 @@
-const RAW_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const RAW_API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').trim();
 
 function getApiUrl() {
   if (typeof window !== 'undefined') {
@@ -10,7 +10,7 @@ function getApiUrl() {
   return RAW_API_URL;
 }
 
-const API_URL = getApiUrl();
+const API_URL = getApiUrl().replace(/\/+$/, '');
 
 /**
  * Core API client. All backend requests go through here.
@@ -56,7 +56,8 @@ async function request(endpoint, options = {}) {
     config.body = body;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, config);
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const response = await fetch(`${API_URL}${cleanEndpoint}`, config);
 
   if (!response.ok) {
     let errorMessage = 'Something went wrong. Please try again.';

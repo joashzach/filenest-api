@@ -6,12 +6,15 @@ const {
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
+// Helper to resolve bucket name across variable naming conventions
+const getBucketName = () => process.env.AWS_BUCKET_NAME || process.env.AWS_BUCKET;
+
 // UPLOAD OBJECT
 exports.generateUploadUrl = async (key, mimeType) => {
   const command = new PutObjectCommand({
-    Bucket: process.env.AWS_BUCKET_NAME,
+    Bucket: getBucketName(),
     Key: key,
-    ContentType: mimeType,
+    ContentType: mimeType || "application/octet-stream",
   });
 
   const uploadUrl = await getSignedUrl(s3, command, {
@@ -24,7 +27,7 @@ exports.generateUploadUrl = async (key, mimeType) => {
 // GET OBJECT
 exports.generateDownloadUrl = async (key, contentType) => {
   const params = {
-    Bucket: process.env.AWS_BUCKET_NAME,
+    Bucket: getBucketName(),
     Key: key,
     ResponseContentDisposition: "inline",
   };
@@ -36,14 +39,14 @@ exports.generateDownloadUrl = async (key, contentType) => {
   const command = new GetObjectCommand(params);
 
   return await getSignedUrl(s3, command, {
-    expiresIn: 300,
+    expiresIn: 3600,
   });
 };
 
 // DELETE OBJECT
 exports.deleteObject = async (key) => {
   const command = new DeleteObjectCommand({
-    Bucket: process.env.AWS_BUCKET_NAME,
+    Bucket: getBucketName(),
     Key: key,
   });
   await s3.send(command);

@@ -1,18 +1,18 @@
 import React from 'react';
-import { formatSize, formatRelativeTime, getFileExtension, getFileCategory } from '../utils/fileUtils';
-import { File, Image, FileText, Video, Download, Trash2, MoveRight } from 'lucide-react';
+import { formatSize, formatRelativeTime, formatDate, formatTime, getFileExtension, getFileCategory } from '../utils/fileUtils';
+import { File, Image, FileText, Video, Download, Trash2, Pencil } from 'lucide-react';
 import './FileCard.css';
 
 /**
  * FileCard — Grid view card representation of a single file
- * Files match their category icon; includes Move action
+ * Files are draggable for moving into folders
  */
 export default function FileCard({
   file,
   onDownload,
   onDelete,
   onPreview,
-  onMove,
+  onRename,
   isDownloading = false,
   isDeleting = false,
 }) {
@@ -33,7 +33,20 @@ export default function FileCard({
   }
 
   return (
-    <div className="file-card" onClick={() => onPreview && onPreview(file)} tabIndex={0} role="article">
+    <div
+      className="file-card"
+      style={{ flexShrink: 0, flexGrow: 0, alignSelf: 'flex-start', height: 'auto' }}
+      draggable={true}
+      onDragStart={(e) => {
+        const payload = JSON.stringify({ itemType: 'file', id: file._id, name: file.originalName });
+        e.dataTransfer.setData('application/x-filenest-item', payload);
+        e.dataTransfer.setData('application/json', payload);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      onClick={() => onPreview && onPreview(file)}
+      tabIndex={0}
+      role="article"
+    >
       <div className="file-card-top">
         {renderCategoryIcon()}
         <span className="file-card-type">{ext}</span>
@@ -46,20 +59,25 @@ export default function FileCard({
         <div className="file-card-meta">
           <span className="file-card-size">{formatSize(file.size)}</span>
           <span className="file-card-sep">•</span>
-          <span className="file-card-date">{formatRelativeTime(file.createdAt)}</span>
+          <span
+            className="file-card-date"
+            title={file.createdAt ? `${formatDate(file.createdAt)} ${formatTime(file.createdAt)}` : ''}
+          >
+            {formatRelativeTime(file.createdAt || file._id)}
+          </span>
         </div>
       </div>
 
       <div className="file-card-actions" onClick={(e) => e.stopPropagation()}>
-        {onMove && (
+        {onRename && (
           <button
             className="file-card-btn"
-            title="Move file"
-            aria-label="Move file"
-            onClick={() => onMove(file)}
+            title="Rename file"
+            aria-label="Rename file"
+            onClick={() => onRename(file)}
             disabled={isDownloading || isDeleting}
           >
-            <MoveRight size={13} strokeWidth={1.5} />
+            <Pencil size={13} strokeWidth={1.5} />
           </button>
         )}
 

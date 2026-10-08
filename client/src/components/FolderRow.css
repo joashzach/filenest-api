@@ -37,5 +37,11 @@
 }
 
 .folder-row-dim {
-  color: #6e7076;
+  color: #9a9ca1;
+}
+
+.folder-row--drag-over {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+  outline: 1px dashed #3b82f6 !important;
+  outline-offset: -1px;
 }

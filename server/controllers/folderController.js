@@ -5,6 +5,7 @@ const {
   getFolderContentsService,
   renameFolderService,
   deleteFolderService,
+  moveFolderService,
 } = require("../services/folderService");
 
 // CREATE FOLDER FUNCTION
@@ -68,5 +69,20 @@ exports.deleteFolder = catchAsync(async (req, res) => {
 
   res.status(200).json({
     message: "Folder and its contents deleted successfully!",
+  });
+});
+
+// MOVE FOLDER FUNCTION
+exports.moveFolder = catchAsync(async (req, res) => {
+  const { parent } = req.body;
+  const folder = await moveFolderService(
+    req.params.folderId,
+    parent,
+    req.user._id,
+  );
+
+  res.status(200).json({
+    message: "Folder moved successfully!",
+    data: folder,
   });
 });

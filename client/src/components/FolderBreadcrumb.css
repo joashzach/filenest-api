@@ -63,6 +63,12 @@
   color: #ececed;
 }
 
+.folder-breadcrumb-link--drag-over {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: #60a5fa !important;
+  outline: 1px dashed #3b82f6 !important;
+}
+
 .folder-breadcrumb-link:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;

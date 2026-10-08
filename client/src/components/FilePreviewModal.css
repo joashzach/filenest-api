@@ -34,15 +34,18 @@
 }
 
 /* Modal view: sized for comfortable presentation & document viewing */
+/* Modal view: sized for comfortable presentation & document viewing */
 .preview-modal {
   width: 100%;
-  max-width: 580px;
-  max-height: calc(100vh - 32px);
-  max-height: calc(100dvh - 32px);
+  max-width: 960px;
+  height: 82vh;
+  height: 82dvh;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
   background-color: #111113;
   border: 1px solid #26272a;
   border-radius: 12px;
-  padding: 18px 20px 20px 20px;
+  padding: 16px 20px 20px 20px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -54,7 +57,7 @@
   overflow: hidden;
 }
 
-/* Header: Filename only + X close button (no icons on view) */
+/* Header: Filename + Action buttons + X close button */
 .preview-header {
   display: flex;
   align-items: center;
@@ -80,6 +83,35 @@
   min-width: 0;
 }
 
+.preview-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.preview-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #85878c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+  text-decoration: none;
+}
+
+.preview-action-btn:hover {
+  background-color: #1a1b1f;
+  color: #ececed;
+}
+
 .preview-close-btn {
   width: 28px;
   height: 28px;
@@ -101,11 +133,11 @@
   color: #ececed;
 }
 
-/* Preview Area — relative container to rigidly constrain positioned media */
+/* Preview Area — relative container with guaranteed height on laptops & desktop */
 .preview-area {
   margin-top: 14px;
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 0%;
+  min-height: 360px;
   min-width: 0;
   max-width: 100%;
   background-color: #0c0c0d;
@@ -115,7 +147,6 @@
   position: relative;
   width: 100%;
   box-sizing: border-box;
-  height: 380px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -171,15 +202,69 @@
   display: block;
   background-color: #ffffff;
   box-sizing: border-box;
-  transition: opacity 0.25s ease;
+  opacity: 1;
 }
 
 .preview-frame.loading {
-  opacity: 0;
+  opacity: 0.8;
 }
 
 .preview-frame.ready {
   opacity: 1;
+}
+
+/* PDF Viewer Wrapper */
+.preview-pdf-wrapper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #1a1a1d;
+  display: flex;
+}
+
+.preview-pdf-object {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* PPTX In-Browser Presentation Viewer */
+.preview-pptx-scroll {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: #121316;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
+}
+
+.preview-pptx-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+}
+
+.preview-pptx-slides {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 }
 
 /* Images: position absolute with inset 0 and object-fit: contain prevents
@@ -292,6 +377,102 @@
   user-select: none;
 }
 
+/* Office & Document Preview Card */
+.preview-office-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.preview-office-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  max-width: 380px;
+}
+
+.preview-office-icon {
+  color: #85878c;
+}
+
+.preview-office-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-office-name {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: #ececed;
+  word-break: break-all;
+  max-width: 320px;
+}
+
+.preview-office-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #85878c;
+  background-color: #1a1b1f;
+  border: 1px solid #26272a;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.preview-office-hint {
+  font-size: 12px;
+  color: #71737a;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.preview-office-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.preview-office-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #ececed;
+  background-color: #1a1b1f;
+  border: 1px solid #2b2c31;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.12s ease;
+}
+
+.preview-office-btn:hover {
+  background-color: #24252a;
+  border-color: #383a40;
+}
+
+.preview-office-btn--primary {
+  background-color: #2b5cff;
+  border-color: #3b6cff;
+  color: #ffffff;
+}
+
+.preview-office-btn--primary:hover {
+  background-color: #3b6cff;
+}
+
 /* Responsive adjustment for mobile & tablet */
 @media (max-width: 768px) {
   .preview-backdrop {
@@ -386,5 +567,13 @@
     object-position: center;
     padding: 6px;
     margin: auto;
+  }
+
+  .preview-pptx-scroll {
+    padding: 12px 6px;
+  }
+
+  .preview-pptx-slides {
+    gap: 12px;
   }
 }

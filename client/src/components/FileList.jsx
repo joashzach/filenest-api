@@ -1,12 +1,12 @@
 import React from 'react';
-import { formatSize, formatRelativeTime, getFileExtension, getFileCategory } from '../utils/fileUtils';
-import { File, Image, FileText, Video, Download, Trash2, MoveRight } from 'lucide-react';
+import { formatSize, formatRelativeTime, formatDate, formatTime, getFileExtension, getFileCategory } from '../utils/fileUtils';
+import { File, Image, FileText, Video, Download, Trash2, Pencil } from 'lucide-react';
 import EmptyState from './EmptyState';
 import './FileList.css';
 
 /**
  * FileList — Flat, restrained table view for files
- * Files match their category icon; includes Move action
+ * Files are draggable for moving into folders
  */
 export default function FileList({
   files = [],
@@ -16,7 +16,7 @@ export default function FileList({
   onDownload,
   onDelete,
   onPreview,
-  onMove,
+  onRename,
   downloadingId,
   deletingId,
 }) {
@@ -80,7 +80,15 @@ export default function FileList({
             <div
               key={file._id}
               className="filelist-row"
+              style={{ height: '48px', minHeight: '48px', maxHeight: '48px', flexShrink: 0, flexGrow: 0, boxSizing: 'border-box' }}
               role="row"
+              draggable={true}
+              onDragStart={(e) => {
+                const payload = JSON.stringify({ itemType: 'file', id: file._id, name: file.originalName });
+                e.dataTransfer.setData('application/x-filenest-item', payload);
+                e.dataTransfer.setData('application/json', payload);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
               onClick={() => onPreview && onPreview(file)}
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && onPreview && onPreview(file)}
@@ -105,21 +113,24 @@ export default function FileList({
               </div>
 
               {/* Date added column */}
-              <div className="filelist-col filelist-col-date">
-                {formatRelativeTime(file.createdAt)}
+              <div
+                className="filelist-col filelist-col-date"
+                title={file.createdAt ? `${formatDate(file.createdAt)} ${formatTime(file.createdAt)}` : ''}
+              >
+                {formatRelativeTime(file.createdAt || file._id)}
               </div>
 
               {/* Actions column */}
               <div className="filelist-col filelist-col-actions" onClick={(e) => e.stopPropagation()}>
-                {onMove && (
+                {onRename && (
                   <button
                     className="filelist-action-btn"
-                    title="Move file"
-                    aria-label="Move file"
-                    onClick={() => onMove(file)}
+                    title="Rename file"
+                    aria-label="Rename file"
+                    onClick={() => onRename(file)}
                     disabled={isDownloading || isDeleting}
                   >
-                    <MoveRight size={14} strokeWidth={1.5} />
+                    <Pencil size={13} strokeWidth={1.5} />
                   </button>
                 )}
 

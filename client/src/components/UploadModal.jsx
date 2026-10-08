@@ -79,17 +79,24 @@ export default function UploadModal({ isOpen, onClose, onSuccess, currentFolderI
       }
 
       // Step 2: Upload directly to storage via presigned PUT
-      setProgressPercent(55);
+      setProgressPercent(0);
       setProgressStage('Uploading file directly to secure storage...');
-      await uploadToS3(uploadUrl, selectedFile);
+      await uploadToS3(
+        uploadUrl,
+        selectedFile,
+        (percent) => {
+          setProgressPercent(percent);
+          setProgressStage(`Uploading... ${percent}%`);
+        },
+        mimeType
+      );
 
       // Step 3: Confirm upload with backend (save metadata in MongoDB)
-      setProgressPercent(85);
+      setProgressPercent(100);
       setProgressStage('Registering file metadata...');
       await confirmUpload({ originalName, mimeType, size, key, folder: currentFolderId || null });
 
       // Step 4: Done!
-      setProgressPercent(100);
       setProgressStage('File uploaded successfully!');
 
       setTimeout(() => {

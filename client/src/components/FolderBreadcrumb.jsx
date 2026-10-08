@@ -9,7 +9,9 @@ import './FolderBreadcrumb.css';
  *   breadcrumbs: Array<{ id: string|null, name: string }>
  *   onNavigate(id): navigate to a folder by ID (null = root)
  */
-export default function FolderBreadcrumb({ breadcrumbs = [], onNavigate }) {
+export default function FolderBreadcrumb({ breadcrumbs = [], onNavigate, onDropItem }) {
+  const [dragOverId, setDragOverId] = React.useState(null);
+
   if (!breadcrumbs || breadcrumbs.length === 0) return null;
 
   return (
@@ -19,8 +21,11 @@ export default function FolderBreadcrumb({ breadcrumbs = [], onNavigate }) {
         <ol className="folder-breadcrumb-list">
           {breadcrumbs.map((crumb, idx) => {
             const isLast = idx === breadcrumbs.length - 1;
+            const crumbKey = crumb.id ?? 'root';
+            const isDragOver = dragOverId === crumbKey;
+
             return (
-              <li key={crumb.id ?? 'root'} className="folder-breadcrumb-item">
+              <li key={crumbKey} className="folder-breadcrumb-item">
                 {isLast ? (
                   <span className="folder-breadcrumb-current" aria-current="page">
                     {crumb.name}
@@ -29,9 +34,34 @@ export default function FolderBreadcrumb({ breadcrumbs = [], onNavigate }) {
                   <>
                     <button
                       type="button"
-                      className="folder-breadcrumb-link"
+                      className={`folder-breadcrumb-link ${isDragOver ? 'folder-breadcrumb-link--drag-over' : ''}`}
                       onClick={() => onNavigate && onNavigate(crumb.id)}
-                      title={`Go to ${crumb.name}`}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = 'move';
+                        if (dragOverId !== crumbKey) setDragOverId(crumbKey);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDragOverId(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDragOverId(null);
+                        try {
+                          const raw = e.dataTransfer.getData('application/x-filenest-item') || e.dataTransfer.getData('application/json');
+                          if (raw) {
+                            const data = JSON.parse(raw);
+                            onDropItem && onDropItem({ _id: crumb.id, name: crumb.name }, data);
+                          }
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                      title={`Move to ${crumb.name}`}
                     >
                       {crumb.name}
                     </button>

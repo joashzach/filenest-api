@@ -6,7 +6,8 @@ const {
   getAllFilesService,
   getFileService,
   deleteFileService,
-  moveFileService
+  moveFileService,
+  renameFileService
 } = require("../services/fileService");
 
 // GENERATE UPLOAD URL
@@ -101,6 +102,17 @@ exports.moveFile = catchAsync(async (req, res) => {
 
   res.status(200).json({
     message: "File moved successfully!",
+    data: file,
+  });
+});
+
+// RENAME FILE
+exports.renameFile = catchAsync(async (req, res) => {
+  const { name } = req.body;
+  const file = await renameFileService(req.params.id, name, req.user._id);
+
+  res.status(200).json({
+    message: "File renamed successfully!",
     data: file,
   });
 });
