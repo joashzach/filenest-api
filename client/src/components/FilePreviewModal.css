@@ -49,7 +49,7 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  font-family: var(--font-primary, 'Poppins', sans-serif);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   color: #ececed;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
   animation: previewScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -213,7 +213,77 @@
   opacity: 1;
 }
 
-/* PDF Viewer Wrapper */
+/* In-browser PDF Multi-Page Viewer */
+.preview-pdf-scroll {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: #0c0c0d;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
+}
+
+.preview-pdf-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.preview-pdf-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.preview-pdf-scroll::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 3px;
+}
+
+.preview-pdf-scroll::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+.preview-pdf-pages {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.preview-pdf-page-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+}
+
+.preview-pdf-page-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+}
+
+.preview-pdf-page-placeholder {
+  width: 100%;
+  max-width: 800px;
+  height: 480px;
+  border-radius: 4px;
+  background-color: #141416;
+}
+
+/* Fallback Native PDF Viewer Wrapper */
 .preview-pdf-wrapper {
   position: absolute;
   inset: 0;
@@ -248,14 +318,6 @@
   scrollbar-color: #27272a transparent;
 }
 
-.preview-pptx-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 40px;
-}
 
 .preview-pptx-slides {
   width: 100%;
@@ -569,11 +631,13 @@
     margin: auto;
   }
 
-  .preview-pptx-scroll {
+  .preview-pptx-scroll,
+  .preview-pdf-scroll {
     padding: 12px 6px;
   }
 
-  .preview-pptx-slides {
+  .preview-pptx-slides,
+  .preview-pdf-pages {
     gap: 12px;
   }
 }

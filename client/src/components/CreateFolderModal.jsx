@@ -51,8 +51,8 @@ export default function CreateFolderModal({ isOpen, parentId, onClose, onSuccess
     setError('');
     setLoading(true);
     try {
-      await createFolder({ name: trimmed, parent: parentId });
-      onSuccess();
+      const res = await createFolder({ name: trimmed, parent: parentId });
+      onSuccess(res.data?.folder || res.data || { name: trimmed, parent: parentId });
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to create folder. Please try again.');

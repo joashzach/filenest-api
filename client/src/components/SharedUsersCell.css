@@ -1,0 +1,68 @@
+.shared-users-cell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.shared-users-single {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.shared-avatar-circle {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  border-radius: 50%;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.shared-user-text {
+  font-size: 13px;
+  color: #9a9ca1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shared-user-text--me {
+  color: #ececed;
+  font-weight: 500;
+}
+
+.shared-users-stack {
+  display: inline-flex;
+  align-items: center;
+  flex-direction: row;
+}
+
+.shared-avatar-stacked {
+  margin-left: -5px;
+  border: 1.5px solid #0f0f10;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.shared-avatar-stacked:first-child {
+  margin-left: 0;
+}
+
+.shared-avatar-overflow {
+  background-color: #2b2c30 !important;
+  color: #d1d2d6 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  border: 1.5px solid #0f0f10;
+}

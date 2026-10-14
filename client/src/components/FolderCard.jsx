@@ -1,19 +1,13 @@
 import React, { useState } from 'react';
-import { Folder, Pencil, Trash2 } from 'lucide-react';
-import { formatRelativeTime, formatFolderSize, formatDate, formatTime } from '../utils/fileUtils';
+import { Folder, Pencil, Trash2, Users, UserMinus, Share2, FolderInput } from 'lucide-react';
+import usePermissions from '../hooks/usePermissions';
+import RowActionMenu from './RowActionMenu';
 import './FolderCard.css';
 
 /**
- * FolderCard — Grid view card for a folder.
+ * FolderCard — Slim single card (4 per row) for grid view.
+ * Features folder icon, name, gray people icon if shared, and ⋮ menu.
  * Supports drag & drop: draggable to move into other folders, droppable to receive files/folders.
- *
- * Props:
- *   folder: { _id, name, createdAt, size }
- *   onOpen(folder): navigate into folder
- *   onRename(folder): open rename modal
- *   onDelete(folder): open delete modal
- *   onDropItem(targetFolder, itemData): drop item into this folder
- *   disabled: boolean
  */
 export default function FolderCard({
   folder,
@@ -21,12 +15,17 @@ export default function FolderCard({
   onRename,
   onDelete,
   onDropItem,
+  onShare,
+  onLeave,
+  onMove,
+  sharedView = null,
   disabled = false,
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const sizeDisplay = formatFolderSize(folder?.size);
+  const permissions = usePermissions(folder);
 
   function handleDragStart(e) {
+    if (!permissions.canMove) return;
     const payload = JSON.stringify({ itemType: 'folder', id: folder._id, name: folder.name });
     e.dataTransfer.setData('application/x-filenest-item', payload);
     e.dataTransfer.setData('application/json', payload);
@@ -61,11 +60,20 @@ export default function FolderCard({
     }
   }
 
+  const isShared = (folder.granteeCount ?? folder.sharedWith?.length ?? folder.grantees?.length ?? 0) > 0;
+  const isSharingWithOthers =
+    sharedView === 'by-me' || (sharedView !== 'with-me' && permissions.isOwner && isShared);
+  const isSharedWithMe =
+    sharedView === 'with-me' ||
+    permissions.isSharedWithMe ||
+    (!permissions.isOwner && Boolean(permissions.role || folder.permission || folder.myPermission || folder.inherited));
+  const isAnyShared = isSharingWithOthers || isSharedWithMe;
+  const sharedTitle = isSharedWithMe ? 'Shared with me' : 'Shared with others';
+
   return (
     <div
-      className={`file-card folder-card ${isDragOver ? 'folder-card--drag-over' : ''}`}
-      style={{ flexShrink: 0, flexGrow: 0, alignSelf: 'flex-start', height: 'auto' }}
-      draggable={true}
+      className={`folder-card ${isDragOver ? 'folder-card--drag-over' : ''}`}
+      draggable={permissions.canMove}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -81,46 +89,101 @@ export default function FolderCard({
         }
       }}
     >
-      <div className="file-card-top">
-        <Folder size={22} strokeWidth={1.5} className="folder-card-icon" />
-        <span className="file-card-type folder-card-badge">Folder</span>
-      </div>
+      <Folder size={18} strokeWidth={1.5} className="folder-card-icon" />
 
-      <div className="file-card-body">
-        <h4 className="file-card-name" title={folder.name}>
-          {folder.name}
-        </h4>
-        <div className="file-card-meta">
-          <span className="file-card-size">{sizeDisplay}</span>
-          <span className="file-card-sep">•</span>
-          <span
-            className="file-card-date"
-            title={folder.createdAt ? `${formatDate(folder.createdAt)} ${formatTime(folder.createdAt)}` : ''}
-          >
-            {formatRelativeTime(folder.createdAt || folder._id)}
-          </span>
-        </div>
-      </div>
+      <span className="folder-card-name" title={folder.name}>
+        {folder.name}
+      </span>
 
-      <div className="file-card-actions" onClick={(e) => e.stopPropagation()}>
-        <button
-          className="file-card-btn"
-          title="Rename folder"
-          aria-label="Rename folder"
-          onClick={() => onRename && onRename(folder)}
+      {isAnyShared && (
+        <span title={sharedTitle} className="folder-card-shared-indicator">
+          <Users size={13} strokeWidth={1.5} />
+        </span>
+      )}
+
+      <div className="folder-card-actions" onClick={(e) => e.stopPropagation()}>
+        <RowActionMenu
           disabled={disabled}
-        >
-          <Pencil size={15} strokeWidth={1.5} />
-        </button>
-        <button
-          className="file-card-btn file-card-btn--delete"
-          title="Delete folder"
-          aria-label="Delete folder"
-          onClick={() => onDelete && onDelete(folder)}
-          disabled={disabled}
-        >
-          <Trash2 size={15} strokeWidth={1.5} />
-        </button>
+          items={
+            sharedView === 'by-me'
+              ? [
+                  onShare && {
+                    key: 'share',
+                    label: 'Share',
+                    icon: Share2,
+                    onClick: () => onShare(folder),
+                  },
+                  onRename && {
+                    key: 'rename',
+                    label: 'Rename',
+                    icon: Pencil,
+                    onClick: () => onRename(folder),
+                  },
+                  onMove && {
+                    key: 'move',
+                    label: 'Move',
+                    icon: FolderInput,
+                    onClick: () => onMove(folder),
+                  },
+                  onDelete && {
+                    key: 'delete',
+                    label: 'Delete',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => onDelete(folder),
+                  },
+                ]
+              : sharedView === 'with-me'
+              ? [
+                  permissions.canRename && onRename && {
+                    key: 'rename',
+                    label: 'Rename',
+                    icon: Pencil,
+                    onClick: () => onRename(folder),
+                  },
+                  permissions.canMove && onMove && {
+                    key: 'move',
+                    label: 'Move',
+                    icon: FolderInput,
+                    onClick: () => onMove(folder),
+                  },
+                  (onDelete || onLeave) && {
+                    key: 'delete',
+                    label: 'Delete',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => (permissions.canDelete && onDelete ? onDelete(folder) : onLeave ? onLeave(folder) : onDelete && onDelete(folder)),
+                  },
+                ]
+              : [
+                  permissions.canShare && onShare && {
+                    key: 'share',
+                    label: 'Share',
+                    icon: Share2,
+                    onClick: () => onShare(folder),
+                  },
+                  permissions.canRename && onRename && {
+                    key: 'rename',
+                    label: 'Rename',
+                    icon: Pencil,
+                    onClick: () => onRename(folder),
+                  },
+                  permissions.canMove && onMove && {
+                    key: 'move',
+                    label: 'Move',
+                    icon: FolderInput,
+                    onClick: () => onMove(folder),
+                  },
+                  (permissions.canDelete || permissions.canLeave || onLeave || onDelete) && {
+                    key: 'delete',
+                    label: 'Delete',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => (permissions.canDelete && onDelete ? onDelete(folder) : onLeave ? onLeave(folder) : onDelete && onDelete(folder)),
+                  },
+                ]
+          }
+        />
       </div>
     </div>
   );

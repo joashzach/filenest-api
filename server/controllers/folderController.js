@@ -1,4 +1,6 @@
+
 const catchAsync = require("../utils/catchAsync");
+
 const {
   createFolderService,
   getFoldersService,
@@ -6,25 +8,35 @@ const {
   renameFolderService,
   deleteFolderService,
   moveFolderService,
+  shareFolderService,
+  removeFolderShareService,
+  getFolderShareGrantsService,
+  leaveFolderShareService,
 } = require("../services/folderService");
 
-// CREATE FOLDER FUNCTION
-exports.createFolder = catchAsync(async (req, res, next) => {
+// CREATE FOLDER
+exports.createFolder = catchAsync(async (req, res) => {
   const { name, parent } = req.body;
 
-  const folder = await createFolderService({ name, parent }, req.user._id);
+  const folder = await createFolderService(
+    { name, parent },
+    req.user._id
+  );
 
   res.status(201).json({
-    message: "Folder created auccessfully!",
+    message: "Folder created successfully!",
     data: folder,
   });
 });
 
-// GET ALL FOLDERS FUNCTION
+// GET ALL FOLDERS
 exports.getFolders = catchAsync(async (req, res) => {
   const { parent } = req.query;
 
-  const folders = await getFoldersService(req.user._id, parent || null);
+  const folders = await getFoldersService(
+    req.user._id,
+    parent || null
+  );
 
   res.status(200).json({
     message: "Folders received successfully!",
@@ -35,11 +47,14 @@ exports.getFolders = catchAsync(async (req, res) => {
   });
 });
 
-// GET FOLDER'S CONTENTS FUNCTION
-exports.getFolderContents = catchAsync(async (req, res, next) => {
+// GET FOLDER CONTENTS
+exports.getFolderContents = catchAsync(async (req, res) => {
   const { folderId } = req.params;
 
-  const contents = await getFolderContentsService(folderId, req.user._id);
+  const contents = await getFolderContentsService(
+    folderId,
+    req.user._id
+  );
 
   res.status(200).json({
     message: "Folder contents received successfully!",
@@ -47,14 +62,14 @@ exports.getFolderContents = catchAsync(async (req, res, next) => {
   });
 });
 
-// RENAME FOLDER FUNCTION
-exports.renameFolder = catchAsync(async (req, res, next) => {
+// RENAME FOLDER
+exports.renameFolder = catchAsync(async (req, res) => {
   const { name } = req.body;
 
   const folder = await renameFolderService(
     req.params.folderId,
     name,
-    req.user._id,
+    req.user._id
   );
 
   res.status(200).json({
@@ -63,7 +78,7 @@ exports.renameFolder = catchAsync(async (req, res, next) => {
   });
 });
 
-// DELETE FOLDER FUNCTION
+// DELETE FOLDER
 exports.deleteFolder = catchAsync(async (req, res) => {
   await deleteFolderService(req.params.folderId, req.user._id);
 
@@ -72,17 +87,80 @@ exports.deleteFolder = catchAsync(async (req, res) => {
   });
 });
 
-// MOVE FOLDER FUNCTION
+// MOVE FOLDER
 exports.moveFolder = catchAsync(async (req, res) => {
   const { parent } = req.body;
+
   const folder = await moveFolderService(
     req.params.folderId,
-    parent,
-    req.user._id,
+    parent || null,
+    req.user._id
   );
 
   res.status(200).json({
     message: "Folder moved successfully!",
     data: folder,
+  });
+});
+
+// SHARE FOLDER
+exports.shareFolder = catchAsync(async (req, res) => {
+  const { userId, permission } = req.body;
+
+  const folder = await shareFolderService(
+    req.params.folderId,
+    userId,
+    permission,
+    req.user._id
+  );
+
+  res.status(200).json({
+    message: "Folder shared successfully!",
+    data: folder,
+  });
+});
+
+// REMOVE FOLDER SHARE
+exports.removeFolderShare = catchAsync(async (req, res) => {
+  const { folderId, recipientId } = req.params;
+
+  // Consistently use the authenticated user's MongoDB ID.
+  const ownerId = req.user._id;
+
+  const folder = await removeFolderShareService(
+    folderId,
+    ownerId,
+    recipientId
+  );
+
+  res.status(200).json({
+    message: "Folder access removed successfully!",
+    data: { folder },
+  });
+});
+
+// GET FOLDER SHARE GRANTS (owner only — populated grantee list)
+exports.getFolderShareGrants = catchAsync(async (req, res) => {
+  const result = await getFolderShareGrantsService(
+    req.params.folderId,
+    req.user._id
+  );
+
+  res.status(200).json({
+    message: "Folder share grants retrieved successfully!",
+    data: result,
+  });
+});
+
+// LEAVE FOLDER SHARE (grantee removes own direct grant)
+exports.leaveFolderShare = catchAsync(async (req, res) => {
+  const result = await leaveFolderShareService(
+    req.params.folderId,
+    req.user._id
+  );
+
+  res.status(200).json({
+    message: "Left folder share successfully!",
+    data: result,
   });
 });

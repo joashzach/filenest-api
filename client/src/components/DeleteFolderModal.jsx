@@ -31,15 +31,29 @@ export default function DeleteFolderModal({ isOpen, folder, onClose, onSuccess }
     }
   }
 
+  const rawName = folder.name || 'this folder';
+  const cleanName = rawName.replace(/^["']|["']$/g, '');
+  const shareCount = folder.granteeCount ?? folder.sharedWith?.length ?? folder.grantees?.length ?? 0;
+  const isShared = shareCount > 0;
+
   return (
     <div className="modal-backdrop" onClick={handleClose}>
       <div className="delete-modal" onClick={(e) => e.stopPropagation()}>
         <div className="delete-modal-content">
-          <h3 className="delete-modal-title">Delete this folder?</h3>
+          <h3 className="delete-modal-title">Delete "{cleanName}"?</h3>
           <p className="delete-modal-desc">
-            <strong className="delete-modal-target-name">{folder.name}</strong> will be
-            permanently deleted. This can't be undone.
+            This will be permanently deleted. This can't be undone.
           </p>
+
+          {isShared && (
+            <div className="delete-modal-shared-box">
+              <span className="delete-modal-shared-primary">
+                Shared with {shareCount} {shareCount === 1 ? 'person' : 'people'}.
+              </span>{' '}
+              <span className="delete-modal-shared-secondary">They'll lose access.</span>
+            </div>
+          )}
+
           {error && <p className="delete-modal-error">{error}</p>}
         </div>
 

@@ -1,0 +1,46 @@
+.filelist-col-owner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  color: #ececed;
+  font-size: 13.5px;
+}
+
+.filelist-th-owner {
+  white-space: nowrap;
+}
+
+.filelist-owner-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #ffffff;
+  user-select: none;
+  background-color: #27272a;
+}
+
+.filelist-owner-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.filelist-owner-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #ececed;
+  font-size: 13.5px;
+  line-height: 1.2;
+}

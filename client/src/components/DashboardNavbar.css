@@ -361,3 +361,50 @@
     left: 9px;
   }
 }
+
+@media (max-width: 360px) {
+  .dash-navbar {
+    padding: 0 8px;
+  }
+
+  .dash-navbar-grid {
+    gap: 6px;
+  }
+
+  .dash-mobile-menu-btn {
+    width: 32px;
+    height: 32px;
+    margin-right: 4px;
+  }
+
+  .dash-navbar-brand {
+    font-size: 15px;
+  }
+
+  .dash-search-box {
+    height: 32px;
+  }
+
+  .dash-search-input {
+    font-size: 12px;
+    padding: 0 22px 0 28px;
+  }
+
+  .dash-search-icon {
+    left: 8px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .dash-profile-pill {
+    width: 32px;
+    height: 32px;
+  }
+
+  .dash-profile-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+}
+

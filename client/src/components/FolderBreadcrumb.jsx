@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder, ChevronRight } from 'lucide-react';
+import { Folder, ChevronRight, Users, Share2 } from 'lucide-react';
 import './FolderBreadcrumb.css';
 
 /**
@@ -14,10 +14,19 @@ export default function FolderBreadcrumb({ breadcrumbs = [], onNavigate, onDropI
 
   if (!breadcrumbs || breadcrumbs.length === 0) return null;
 
+  const isSharedWithMe = breadcrumbs[0]?.name === 'Shared with me';
+  const isSharedByMe = breadcrumbs[0]?.name === 'Shared by me';
+
   return (
     <nav className="folder-breadcrumb" aria-label="Folder path">
       <div className="folder-breadcrumb-container">
-        <Folder size={16} strokeWidth={1.5} className="folder-breadcrumb-root-icon" aria-hidden="true" />
+        {isSharedByMe ? (
+          <Share2 size={16} strokeWidth={1.5} className="folder-breadcrumb-root-icon" aria-hidden="true" />
+        ) : isSharedWithMe ? (
+          <Users size={16} strokeWidth={1.5} className="folder-breadcrumb-root-icon" aria-hidden="true" />
+        ) : (
+          <Folder size={16} strokeWidth={1.5} className="folder-breadcrumb-root-icon" aria-hidden="true" />
+        )}
         <ol className="folder-breadcrumb-list">
           {breadcrumbs.map((crumb, idx) => {
             const isLast = idx === breadcrumbs.length - 1;

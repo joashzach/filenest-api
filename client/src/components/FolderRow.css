@@ -4,7 +4,7 @@
  */
 
 .folder-row {
-  cursor: default;
+  cursor: pointer;
 }
 
 .folder-row-name {
@@ -20,9 +20,11 @@
 }
 
 .folder-row-chevron {
-  color: #3b3d42;
+  color: #85878c;
   flex-shrink: 0;
-  margin-left: auto;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Normal font for folder type, not italics, matching other types */

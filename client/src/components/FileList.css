@@ -4,12 +4,19 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
 }
 
 .filelist-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: grid;
-  grid-template-columns: 1fr 52px 78px 106px 94px;
+  grid-template-columns: 1fr 215px 50px 66px 96px 32px;
   gap: 16px;
   align-items: center;
   padding: 0 14px;
@@ -27,17 +34,16 @@
   color: #6e7076;
 }
 
+.filelist-th-owner {
+  white-space: nowrap;
+}
+
 .filelist-rows {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: stretch;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: #27272a transparent;
+  width: 100%;
 }
 
 .filelist-rows > * {
@@ -51,7 +57,7 @@
 
 .filelist-row {
   display: grid;
-  grid-template-columns: 1fr 52px 78px 106px 94px;
+  grid-template-columns: 1fr 215px 50px 66px 96px 32px;
   gap: 16px;
   align-items: center;
   padding: 0 14px;
@@ -66,9 +72,16 @@
   transition: background-color 120ms ease;
   cursor: pointer;
   border-radius: 4px;
+  position: relative;
 }
 
 .filelist-row:hover {
+  background-color: #18191b;
+}
+
+.filelist-row:has(.row-action-menu-wrap--open),
+.filelist-row:has(.row-action-trigger-btn--active) {
+  z-index: 60;
   background-color: #18191b;
 }
 
@@ -89,8 +102,7 @@
 }
 
 .filelist-col-name:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
+  outline: none;
 }
 
 .filelist-row-file-icon {
@@ -129,8 +141,9 @@
 .filelist-col-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 2px;
+  position: relative;
 }
 
 .filelist-action-btn {
@@ -154,8 +167,7 @@
 }
 
 .filelist-action-btn:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
+  outline: none;
 }
 
 .filelist-action-btn--delete:hover {
@@ -168,14 +180,19 @@
   cursor: not-allowed;
 }
 
-/* Status states */
+/* Status states — centered vertically and horizontally */
 .filelist-status {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 68px 20px;
+  width: 100%;
+  min-height: 320px;
+  margin: auto 0;
+  padding: 40px 20px;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .filelist-status-text {
@@ -207,8 +224,7 @@
 }
 
 .filelist-retry-btn:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
+  outline: none;
 }
 
 .filelist-spinner {
@@ -224,12 +240,70 @@
   to { transform: rotate(360deg); }
 }
 
+/* Shared view column templates */
+.filelist-header--with-me,
+.filelist-row--with-me {
+  grid-template-columns: 1fr 200px 90px 120px 44px !important;
+}
+
+.filelist-header--by-me,
+.filelist-row--by-me {
+  grid-template-columns: 1fr 220px 120px 44px !important;
+}
+
+.filelist-col-shared-by,
+.filelist-col-shared-with {
+  color: #9a9ca1;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.filelist-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  line-height: 1;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #9a9ca1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filelist-badge--viewer,
+.filelist-badge--editor {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #9a9ca1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.file-shared-indicator {
+  display: inline-flex;
+  align-items: center;
+  color: #60a5fa;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
 /* Responsive adjustments */
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .filelist-header,
   .filelist-row {
-    grid-template-columns: 1fr 52px 78px 94px;
+    grid-template-columns: 1fr 170px 50px 66px 32px;
     gap: 12px;
+  }
+  .filelist-header--with-me,
+  .filelist-row--with-me {
+    grid-template-columns: 1fr 160px 80px 32px !important;
+  }
+  .filelist-header--by-me,
+  .filelist-row--by-me {
+    grid-template-columns: 1fr 180px 32px !important;
   }
   .filelist-th-date,
   .filelist-col-date {
@@ -237,10 +311,22 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .filelist-header,
   .filelist-row {
-    grid-template-columns: 1fr 68px 94px;
+    grid-template-columns: 1fr 140px 64px 32px;
+    gap: 10px;
+    padding: 0 10px;
+  }
+  .filelist-header--with-me,
+  .filelist-row--with-me {
+    grid-template-columns: 1fr 140px 75px 32px !important;
+    gap: 10px;
+    padding: 0 10px;
+  }
+  .filelist-header--by-me,
+  .filelist-row--by-me {
+    grid-template-columns: 1fr 140px 32px !important;
     gap: 10px;
     padding: 0 10px;
   }
@@ -250,13 +336,36 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 520px) {
   .filelist-header,
   .filelist-row {
-    grid-template-columns: 1fr 58px 88px;
+    grid-template-columns: 1fr 64px 32px;
     gap: 8px;
-    padding: 0 6px;
+    padding: 0 8px;
   }
+  .filelist-header--with-me,
+  .filelist-row--with-me {
+    grid-template-columns: 1fr 75px 32px !important;
+    gap: 8px;
+    padding: 0 8px;
+  }
+  .filelist-header--by-me,
+  .filelist-row--by-me {
+    grid-template-columns: 1fr 32px !important;
+    gap: 8px;
+    padding: 0 8px;
+  }
+  .filelist-th-owner,
+  .filelist-col-owner,
+  .filelist-th-shared-by,
+  .filelist-col-shared-by,
+  .filelist-th-shared-with,
+  .filelist-col-shared-with {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
   .filelist-row,
   .filelist-rows > * {
     height: 46px !important;
@@ -281,15 +390,21 @@
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 380px) {
   .filelist-header,
-  .filelist-row {
-    grid-template-columns: 1fr 88px;
+  .filelist-row,
+  .filelist-header--with-me,
+  .filelist-row--with-me,
+  .filelist-header--by-me,
+  .filelist-row--by-me {
+    grid-template-columns: 1fr 32px !important;
     gap: 6px;
-    padding: 0 4px;
+    padding: 0 6px;
   }
   .filelist-th-size,
-  .filelist-col-size {
-    display: none;
+  .filelist-col-size,
+  .filelist-th-role,
+  .filelist-col-role {
+    display: none !important;
   }
 }

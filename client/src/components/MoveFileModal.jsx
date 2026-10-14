@@ -1,36 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import { moveFile } from '../services/FileApi';
-import { getRootContents, getFolderContents } from '../services/FolderApi';
-import { IconClose, IconAlert, IconFolder } from './Icons';
+import { getRootContents, getFolderContents, moveFolder } from '../services/FolderApi';
+import { IconClose, IconAlert } from './Icons';
 import { ChevronRight, Home, Folder } from 'lucide-react';
 import './MoveFileModal.css';
 
 /**
- * MoveFileModal — lets the user pick a destination folder (or root) for a file.
+ * MoveFileModal — lets the user pick a destination folder for a file or folder.
+ * Supports personal files and items within a shared folder.
  *
  * Props:
  *   isOpen: boolean
- *   file: { _id, originalName } | null
- *   currentFolderId: string|null  — exclude the current location from choices
+ *   item: { _id, originalName?, name? } | null
+ *   file: alias for item
+ *   itemType: 'file' | 'folder'
+ *   currentFolderId: string|null
+ *   sharedRootFolder: { id: string, name: string } | null
  *   onClose(): void
  *   onSuccess(): void
  */
-export default function MoveFileModal({ isOpen, file, currentFolderId, onClose, onSuccess }) {
-  // browsing state inside the modal
+export default function MoveFileModal({
+  isOpen,
+  item,
+  file,
+  itemType = 'file',
+  currentFolderId,
+  sharedRootFolder = null,
+  onClose,
+  onSuccess,
+}) {
+  const target = item || file;
+  const isFolder = itemType === 'folder' || (!target?.originalName && Boolean(target?.name));
+  const itemName = target?.originalName || target?.name || 'item';
+
+  // browsing state inside the modal (subfolders beneath root)
   const [browsePath, setBrowsePath] = useState([]); // [{id, name}]
   const [folders, setFolders] = useState([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState('');
 
-  const currentBrowseFolderId = browsePath.length > 0 ? browsePath[browsePath.length - 1].id : null;
-
-  // Fetch folders whenever the modal opens or the browse path changes
-  useEffect(() => {
-    if (!isOpen) return;
-    setError('');
-    loadFolders(currentBrowseFolderId);
-  }, [isOpen, currentBrowseFolderId]);
+  const currentBrowseFolderId =
+    browsePath.length > 0
+      ? browsePath[browsePath.length - 1].id
+      : sharedRootFolder
+      ? sharedRootFolder.id
+      : null;
 
   // Reset browse path when modal opens
   useEffect(() => {
@@ -39,7 +54,14 @@ export default function MoveFileModal({ isOpen, file, currentFolderId, onClose, 
       setError('');
       setMoving(false);
     }
-  }, [isOpen]);
+  }, [isOpen, sharedRootFolder?.id]);
+
+  // Fetch folders whenever the modal opens or the browse path changes
+  useEffect(() => {
+    if (!isOpen || !target) return;
+    setError('');
+    loadFolders(currentBrowseFolderId);
+  }, [isOpen, currentBrowseFolderId, target]);
 
   async function loadFolders(folderId) {
     setLoadingFolders(true);
@@ -47,10 +69,17 @@ export default function MoveFileModal({ isOpen, file, currentFolderId, onClose, 
       let res;
       if (folderId) {
         res = await getFolderContents(folderId);
+      } else if (sharedRootFolder) {
+        res = await getFolderContents(sharedRootFolder.id);
       } else {
         res = await getRootContents();
       }
-      setFolders(res.data?.folders || []);
+      const rawFolders = res.data?.folders || [];
+      // If moving a folder, exclude the folder itself from destination choices
+      const filtered = isFolder && target?._id
+        ? rawFolders.filter((f) => f._id !== target._id)
+        : rawFolders;
+      setFolders(filtered);
     } catch (err) {
       setError('Could not load folders.');
     } finally {
@@ -76,31 +105,39 @@ export default function MoveFileModal({ isOpen, file, currentFolderId, onClose, 
   }
 
   async function handleMove(destinationFolderId) {
-    if (moving) return;
+    if (moving || !target) return;
     setError('');
     setMoving(true);
     try {
-      await moveFile(file._id, destinationFolderId);
+      if (isFolder) {
+        await moveFolder(target._id, destinationFolderId);
+      } else {
+        await moveFile(target._id, destinationFolderId);
+      }
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err.message || 'Failed to move file. Please try again.');
+      setError(err.message || 'Failed to move item. Please try again.');
       setMoving(false);
     }
   }
 
-  // Determine if destination is same as file's current location
-  const fileFolderId = file
-    ? typeof file.folder === 'object' && file.folder !== null
-      ? file.folder._id
-      : file.folder || null
+  // Determine if destination is same as item's current location
+  const itemFolderId = target
+    ? typeof target.folder === 'object' && target.folder !== null
+      ? target.folder._id
+      : target.folder || target.parent || null
     : null;
-  const actualCurrentFolderId = fileFolderId ?? currentFolderId ?? null;
+  const actualCurrentFolderId = itemFolderId ?? currentFolderId ?? null;
   const isCurrentLocation = String(currentBrowseFolderId || '') === String(actualCurrentFolderId || '');
   const destinationName =
-    browsePath.length > 0 ? browsePath[browsePath.length - 1].name : 'My Files (Root)';
+    browsePath.length > 0
+      ? browsePath[browsePath.length - 1].name
+      : sharedRootFolder
+      ? sharedRootFolder.name
+      : 'My Files (Root)';
 
-  if (!isOpen || !file) return null;
+  if (!isOpen || !target) return null;
 
   return (
     <div className="modal-backdrop" onClick={handleClose}>
@@ -112,9 +149,9 @@ export default function MoveFileModal({ isOpen, file, currentFolderId, onClose, 
               <Folder size={16} strokeWidth={1.5} />
             </div>
             <div>
-              <h3 className="text-heading-xs move-modal-title">Move File</h3>
-              <p className="text-caption text-smoke move-modal-subtitle" title={file.originalName}>
-                {file.originalName}
+              <h3 className="text-heading-xs move-modal-title">Move {isFolder ? 'Folder' : 'File'}</h3>
+              <p className="text-caption text-smoke move-modal-subtitle" title={itemName}>
+                {itemName}
               </p>
             </div>
           </div>
@@ -137,8 +174,17 @@ export default function MoveFileModal({ isOpen, file, currentFolderId, onClose, 
             className={`move-modal-crumb-btn ${browsePath.length === 0 ? 'move-modal-crumb-btn--active' : ''}`}
             onClick={handleGoRoot}
           >
-            <Home size={13} strokeWidth={1.5} />
-            <span>My Files</span>
+            {sharedRootFolder ? (
+              <>
+                <Folder size={13} strokeWidth={1.5} />
+                <span>{sharedRootFolder.name}</span>
+              </>
+            ) : (
+              <>
+                <Home size={13} strokeWidth={1.5} />
+                <span>My Files</span>
+              </>
+            )}
           </button>
           {browsePath.map((crumb, idx) => (
             <React.Fragment key={crumb.id}>

@@ -67,8 +67,8 @@ export default function RenameFileModal({ isOpen, file, onClose, onSuccess }) {
     setError('');
     setLoading(true);
     try {
-      await renameFile(file._id, trimmed);
-      onSuccess && onSuccess();
+      const res = await renameFile(file._id, trimmed);
+      onSuccess && onSuccess(res.data?.file || { ...file, originalName: trimmed });
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to rename file. Please try again.');

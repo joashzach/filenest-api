@@ -38,6 +38,22 @@ function App() {
             }
           />
           <Route
+            path="/dashboard/:section"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/:section/:folderId"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/settings"
             element={<Navigate to="/dashboard" replace />}
           />

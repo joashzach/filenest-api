@@ -59,8 +59,8 @@ export default function RenameFolderModal({ isOpen, folder, onClose, onSuccess }
     setError('');
     setLoading(true);
     try {
-      await renameFolder(folder._id, trimmed);
-      onSuccess();
+      const res = await renameFolder(folder._id, trimmed);
+      onSuccess(res.data?.folder || { ...folder, name: trimmed });
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to rename folder. Please try again.');

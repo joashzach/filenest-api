@@ -7,6 +7,10 @@ const {
   renameFolder,
   deleteFolder,
   moveFolder,
+  shareFolder,
+  removeFolderShare,
+  getFolderShareGrants,
+  leaveFolderShare,
 } = require("../controllers/folderController");
 const router = express.Router();
 
@@ -19,5 +23,10 @@ router
   .route("/:folderId")
   .patch(protect, renameFolder)
   .delete(protect, deleteFolder);
+// Share management — /share/me must come before /share/:recipientId
+router.get("/:folderId/share", protect, getFolderShareGrants);
+router.post("/:folderId/share", protect, shareFolder);
+router.delete("/:folderId/share/me", protect, leaveFolderShare);
+router.delete("/:folderId/share/:recipientId", protect, removeFolderShare);
 
 module.exports = router;

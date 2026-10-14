@@ -1,0 +1,575 @@
+/* ==========================================================================
+   FileThumbnail.css — High-Fidelity Previews for Every File Type in Grid View
+   ========================================================================== */
+
+.file-thumb-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #121315;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── 1. Image Previews ── */
+.file-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background-color: #121315;
+  transition: opacity 180ms ease, transform 200ms ease;
+}
+
+.file-card:hover .file-thumb-img {
+  transform: scale(1.02);
+}
+
+.file-thumb-img.file-thumb-pdf-page {
+  object-fit: cover;
+  background-color: #1a1b1e;
+}
+
+/* ── 2. Video Previews ── */
+.file-thumb-video-wrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0c0c0d;
+}
+
+.file-thumb-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.file-thumb-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.55) 100%);
+  pointer-events: none;
+}
+
+.file-thumb-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: rgba(20, 21, 24, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+  transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+.file-card:hover .file-thumb-play-btn {
+  transform: scale(1.1);
+  background-color: rgba(35, 37, 42, 0.92);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── 3. PPTX Slides ── */
+.file-thumb-pptx-wrap {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  background-color: #121315;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-thumb-pptx-slides {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  overflow: hidden;
+  position: relative;
+}
+
+.file-thumb-pptx-slides > div {
+  flex-shrink: 0;
+}
+
+.file-thumb-overlay-loading {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #141517;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── 4. Realistic Slide Card (PPTX fallback & template) ── */
+.file-thumb-slide-card {
+  width: 86%;
+  height: 82%;
+  background-color: #1c1d22;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  transition: transform 140ms ease;
+}
+
+.file-card:hover .file-thumb-slide-card {
+  transform: scale(1.02);
+}
+
+.file-thumb-slide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.file-thumb-badge {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.file-thumb-badge--pptx {
+  background-color: rgba(249, 115, 22, 0.18);
+  color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.35);
+}
+
+.file-thumb-badge--pdf {
+  background-color: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.file-thumb-badge--docx {
+  background-color: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.file-thumb-badge--xlsx {
+  background-color: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.file-thumb-badge--code {
+  background-color: rgba(168, 85, 247, 0.18);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.file-thumb-badge--audio {
+  background-color: rgba(217, 70, 239, 0.18);
+  color: #e879f9;
+  border: 1px solid rgba(217, 70, 239, 0.35);
+}
+
+.file-thumb-badge--archive {
+  background-color: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.file-thumb-slide-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.3;
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.file-thumb-slide-body {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.file-thumb-slide-col {
+  flex: 1;
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  gap: 4px;
+}
+
+.file-thumb-mock-line {
+  height: 5px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.file-thumb-mock-line--short {
+  width: 60%;
+}
+
+.file-thumb-mock-line--medium {
+  width: 80%;
+}
+
+.file-thumb-mock-line--accent {
+  background-color: rgba(249, 115, 22, 0.35);
+}
+
+/* ── 5. Realistic Document Sheet (PDF & DOCX) ── */
+.file-thumb-doc-sheet {
+  width: 68%;
+  height: 84%;
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  box-sizing: border-box;
+  position: relative;
+  transition: transform 140ms ease;
+}
+
+.file-card:hover .file-thumb-doc-sheet {
+  transform: translateY(-2px);
+}
+
+.file-thumb-doc-sheet-tag {
+  align-self: flex-start;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.file-thumb-doc-sheet-tag--pdf {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.file-thumb-doc-sheet-tag--docx {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.file-thumb-doc-sheet-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #111215;
+  line-height: 1.25;
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.file-thumb-doc-sheet-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4.5px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.file-thumb-doc-line {
+  height: 4px;
+  border-radius: 2px;
+  background-color: #d1d5db;
+}
+
+.file-thumb-doc-line--short {
+  width: 55%;
+}
+
+.file-thumb-doc-line--medium {
+  width: 78%;
+}
+
+/* ── 6. Live Code & Text Snippet Card ── */
+.file-thumb-code-card {
+  width: 90%;
+  height: 86%;
+  background-color: #0d0f12;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  transition: transform 140ms ease;
+}
+
+.file-card:hover .file-thumb-code-card {
+  transform: scale(1.02);
+}
+
+.file-thumb-code-header {
+  height: 24px;
+  background-color: #14161a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.file-thumb-code-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.file-thumb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.file-thumb-dot--red { background-color: #ef4444; }
+.file-thumb-dot--yellow { background-color: #eab308; }
+.file-thumb-dot--green { background-color: #22c55e; }
+
+.file-thumb-code-lang {
+  font-size: 9px;
+  font-weight: 600;
+  color: #8b8e96;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.file-thumb-code-body {
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #e5e7eb;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-thumb-code-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-thumb-code-num {
+  color: #4b5563;
+  font-size: 9.5px;
+  width: 14px;
+  text-align: right;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.file-thumb-code-text {
+  color: #d1d5db;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 7. Spreadsheet Grid Card ── */
+.file-thumb-sheet-card {
+  width: 88%;
+  height: 84%;
+  background-color: #131418;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.file-thumb-sheet-header-bar {
+  height: 24px;
+  background-color: rgba(16, 185, 129, 0.12);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.file-thumb-sheet-table {
+  display: grid;
+  grid-template-columns: 24px repeat(3, 1fr);
+  width: 100%;
+  flex: 1;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 10px;
+}
+
+.file-thumb-sheet-cell {
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  color: #9ca3af;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-thumb-sheet-cell--th {
+  background-color: rgba(255, 255, 255, 0.03);
+  color: #6b7280;
+  font-weight: 600;
+  justify-content: center;
+}
+
+/* ── 8. Audio Waveform Stage ── */
+.file-thumb-audio-stage {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, #241442 0%, #0c0d11 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.file-thumb-audio-waves {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 38px;
+}
+
+.file-thumb-audio-bar {
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #c084fc 0%, #7c3aed 100%);
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+}
+
+.file-thumb-audio-disc {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #3b0764 0%, #17181c 65%, #090a0f 100%);
+  border: 1px solid rgba(217, 70, 239, 0.35);
+  box-shadow: 0 6px 20px rgba(147, 51, 234, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e879f9;
+}
+
+/* ── 9. Archive / ZIP Card ── */
+.file-thumb-archive-stage {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, #271a06 0%, #0d0e12 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.file-thumb-archive-icon-wrap {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fbbf24;
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.2);
+}
+
+/* ── 10. Neutral Tile ── */
+.file-thumb-tile {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #141517;
+  padding: 12px;
+}
+
+.file-thumb-doc-icon {
+  flex-shrink: 0;
+  transition: transform 140ms ease;
+}
+
+.file-card:hover .file-thumb-doc-icon {
+  transform: translateY(-2px);
+}
+
+.file-thumb-tile-ext {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #6e7076;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  user-select: none;
+}

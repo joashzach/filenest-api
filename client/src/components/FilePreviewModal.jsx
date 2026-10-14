@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getDownloadUrl } from '../services/FileApi';
 import { X, FileText } from 'lucide-react';
+import { pdfjsLib } from '../utils/pdfThumbnail';
 import './FilePreviewModal.css';
 
 /**
@@ -83,7 +84,6 @@ function detectFileType(file) {
  */
 function PptxPreview({ url, fileName, onLoaded, onError }) {
   const containerRef = useRef(null);
-  const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
 
   useEffect(() => {
@@ -92,7 +92,6 @@ function PptxPreview({ url, fileName, onLoaded, onError }) {
 
     async function loadPresentation() {
       try {
-        setLoading(true);
         setErrorMsg(null);
 
         const response = await fetch(url);
@@ -122,13 +121,11 @@ function PptxPreview({ url, fileName, onLoaded, onError }) {
           return;
         }
 
-        setLoading(false);
         onLoaded && onLoaded();
       } catch (err) {
         console.error('Failed to render presentation:', err);
         if (!cancelled) {
           setErrorMsg(err.message || 'Unable to render presentation slides');
-          setLoading(false);
           onError && onError(err);
         }
       }
@@ -148,12 +145,6 @@ function PptxPreview({ url, fileName, onLoaded, onError }) {
 
   return (
     <div className="preview-pptx-scroll">
-      {loading && (
-        <div className="preview-pptx-loading">
-          <span className="file-card-spinner" />
-          <span className="preview-status-text">Rendering presentation slides...</span>
-        </div>
-      )}
       {errorMsg ? (
         <div className="preview-office-container">
           <div className="preview-office-card">
@@ -176,6 +167,204 @@ function PptxPreview({ url, fileName, onLoaded, onError }) {
 }
 
 /**
+ * In-browser PDF multi-page document renderer powered by pdfjs-dist.
+ * Renders all pages cleanly onto canvases in a smooth vertical scroll container,
+ * completely eliminating browser chrome / native PDF toolbars.
+ */
+function PdfPage({ pdf, pageNum, onPageRendered }) {
+  const containerRef = useRef(null);
+  const canvasRef = useRef(null);
+  const renderTaskRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(pageNum <= 3);
+
+  useEffect(() => {
+    if (pageNum <= 3 || isVisible) return;
+    const el = containerRef.current;
+    if (!el || !('IntersectionObserver' in window)) {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '350px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pageNum, isVisible]);
+
+  useEffect(() => {
+    if (!isVisible || !pdf) return;
+    let cancelled = false;
+
+    async function renderPage() {
+      try {
+        const page = await pdf.getPage(pageNum);
+        if (cancelled || !canvasRef.current) return;
+
+        const canvas = canvasRef.current;
+        const unscaledViewport = page.getViewport({ scale: 1 });
+
+        const containerWidth = containerRef.current?.clientWidth || 880;
+        const isLandscape = unscaledViewport.width > unscaledViewport.height;
+        const targetWidth = isLandscape
+          ? Math.min(containerWidth - 32, 900)
+          : Math.min(containerWidth - 32, 780);
+
+        const cssScale = targetWidth / unscaledViewport.width;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const viewport = page.getViewport({ scale: cssScale * dpr });
+
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = `${Math.floor(viewport.width / dpr)}px`;
+        canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
+
+        const ctx = canvas.getContext('2d');
+        if (renderTaskRef.current) {
+          try {
+            renderTaskRef.current.cancel();
+          } catch (e) {}
+        }
+
+        const renderTask = page.render({
+          canvasContext: ctx,
+          viewport,
+        });
+        renderTaskRef.current = renderTask;
+
+        await renderTask.promise;
+        if (!cancelled && onPageRendered) {
+          onPageRendered(pageNum);
+        }
+      } catch (err) {
+        if (err?.name !== 'RenderingCancelledException') {
+          console.error(`Failed to render PDF page ${pageNum}:`, err);
+        }
+      }
+    }
+
+    renderPage();
+
+    return () => {
+      cancelled = true;
+      if (renderTaskRef.current) {
+        try {
+          renderTaskRef.current.cancel();
+        } catch (e) {}
+      }
+    };
+  }, [pdf, pageNum, isVisible]);
+
+  return (
+    <div ref={containerRef} className="preview-pdf-page-wrap">
+      {isVisible ? (
+        <canvas ref={canvasRef} className="preview-pdf-page-canvas" />
+      ) : (
+        <div className="preview-pdf-page-placeholder" />
+      )}
+    </div>
+  );
+}
+
+function PdfPreview({ url, fileName, onLoaded, onError }) {
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const [numPages, setNumPages] = useState(0);
+  const [errorMsg, setErrorMsg] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let loadingTask = null;
+
+    async function loadPdf() {
+      try {
+        setErrorMsg(null);
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Could not download PDF file');
+        const buffer = await response.arrayBuffer();
+
+        if (cancelled) return;
+
+        loadingTask = pdfjsLib.getDocument({
+          data: new Uint8Array(buffer),
+        });
+
+        const pdf = await loadingTask.promise;
+        if (cancelled) return;
+
+        setPdfDoc(pdf);
+        setNumPages(pdf.numPages);
+        onLoaded && onLoaded();
+      } catch (err) {
+        console.error('Failed to load PDF with pdfjs:', err);
+        if (!cancelled) {
+          setErrorMsg(err.message || 'Unable to render PDF document');
+          onError && onError(err);
+        }
+      }
+    }
+
+    loadPdf();
+
+    return () => {
+      cancelled = true;
+      if (loadingTask) {
+        try {
+          loadingTask.destroy();
+        } catch (e) {}
+      }
+    };
+  }, [url]);
+
+  if (errorMsg) {
+    return (
+      <div className="preview-pdf-wrapper">
+        <object
+          data={`${url}#toolbar=0&navpanes=0`}
+          type="application/pdf"
+          className="preview-pdf-object"
+          title={fileName || 'PDF Document'}
+        >
+          <iframe
+            src={`${url}#toolbar=0&navpanes=0`}
+            className="preview-frame ready"
+            title={fileName || 'PDF Document'}
+          />
+        </object>
+      </div>
+    );
+  }
+
+  if (!pdfDoc || numPages === 0) {
+    return null;
+  }
+
+  const pages = Array.from({ length: numPages }, (_, i) => i + 1);
+
+  return (
+    <div className="preview-pdf-scroll">
+      <div className="preview-pdf-pages">
+        {pages.map((pageNum) => (
+          <PdfPage
+            key={pageNum}
+            pdf={pdfDoc}
+            pageNum={pageNum}
+            onPageRendered={pageNum === 1 ? onLoaded : undefined}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * FilePreviewModal — Displays files directly with loading feedback for all media types
  */
 export default function FilePreviewModal({
@@ -183,6 +372,7 @@ export default function FilePreviewModal({
   isOpen,
   onClose,
   onDownload,
+  onAccessRevoked,
   isDownloading = false,
 }) {
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -287,13 +477,24 @@ export default function FilePreviewModal({
             setIsTruncated(truncated);
             setContentLoaded(true);
           }
-        } else if (typeInfo.type === 'pdf' || typeInfo.type === 'pptx' || typeInfo.type === 'office') {
-          // PDF, PPTX and Office files initialize immediately without blocking text decode
+        } else if (typeInfo.type === 'office') {
+          // Office files initialize immediately without blocking text decode
           setContentLoaded(true);
         }
       })
       .catch((err) => {
         if (err.name !== 'AbortError' && !controller.signal.aborted) {
+          if (
+            err.status === 404 ||
+            err.message?.includes('404') ||
+            err.message?.includes('not exist') ||
+            err.message?.includes('access')
+          ) {
+            if (onAccessRevoked) {
+              onAccessRevoked();
+              return;
+            }
+          }
           setError(true);
         }
       })
@@ -338,20 +539,12 @@ export default function FilePreviewModal({
 
       case 'pdf':
         return (
-          <div className="preview-pdf-wrapper">
-            <object
-              data={`${previewUrl}#toolbar=1`}
-              type="application/pdf"
-              className="preview-pdf-object"
-              title={file.originalName || file.name || 'PDF Document'}
-            >
-              <iframe
-                src={`${previewUrl}#toolbar=1`}
-                className="preview-frame ready"
-                title={file.originalName || file.name || 'PDF Document'}
-              />
-            </object>
-          </div>
+          <PdfPreview
+            url={previewUrl}
+            fileName={file.originalName || file.name}
+            onLoaded={() => setContentLoaded(true)}
+            onError={() => setContentLoaded(true)}
+          />
         );
 
       case 'pptx':
@@ -360,7 +553,7 @@ export default function FilePreviewModal({
             url={previewUrl}
             fileName={file.originalName || file.name}
             onLoaded={() => setContentLoaded(true)}
-            onError={() => setError(true)}
+            onError={() => setContentLoaded(true)}
           />
         );
 

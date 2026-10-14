@@ -23,13 +23,12 @@
   box-sizing: border-box;
 }
 
-/* Accessible focus visible outline on all controls */
+/* Accessible focus visible outline on controls */
 .dash-layout button:focus-visible,
 .dash-layout input:focus-visible,
 .dash-layout select:focus-visible,
 .dash-layout [tabindex]:focus-visible {
-  outline: 2px solid #3b82f6 !important;
-  outline-offset: 2px !important;
+  outline: none;
 }
 
 .dash-body {
@@ -52,20 +51,24 @@
   overflow: hidden;
 }
 
-/* Scrollbar styles applied to the file rows scroller */
+/* Scrollbar styles applied to the file list scroller */
+.filelist-container::-webkit-scrollbar,
 .filelist-rows::-webkit-scrollbar {
   width: 6px;
 }
 
+.filelist-container::-webkit-scrollbar-track,
 .filelist-rows::-webkit-scrollbar-track {
   background: transparent;
 }
 
+.filelist-container::-webkit-scrollbar-thumb,
 .filelist-rows::-webkit-scrollbar-thumb {
   background: #27272a;
   border-radius: 3px;
 }
 
+.filelist-container::-webkit-scrollbar-thumb:hover,
 .filelist-rows::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
 }
@@ -95,9 +98,9 @@
 .dash-toolbar-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .dash-count-inline {
@@ -111,20 +114,8 @@
 .dash-toolbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
-}
-
-.dash-toolbar-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dash-toolbar-ctas {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* CTAs: New folder & Upload file */
@@ -132,16 +123,17 @@
   height: 36px;
   padding: 0 14px;
   border-radius: 8px;
-  border: 1px solid #28292d;
-  background-color: #141416;
+  border: 1px solid #26272b;
+  background-color: transparent;
   color: #ececed;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 400;
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  box-sizing: border-box;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
   white-space: nowrap;
 }
@@ -159,15 +151,15 @@
 }
 
 .dash-new-folder-btn:hover svg {
-  color: #ececed;
+  color: #ffffff;
 }
 
 .dash-upload-btn {
   height: 36px;
-  width: 168px;
-  min-width: 168px;
-  max-width: 168px;
-  padding: 0 12px;
+  width: auto;
+  min-width: auto;
+  max-width: none;
+  padding: 0 16px;
   border-radius: 8px;
   border: none;
   background-color: #ffffff;
@@ -178,7 +170,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
   cursor: pointer;
   transition: background-color 120ms ease, opacity 120ms ease;
   white-space: nowrap;
@@ -191,10 +183,11 @@
   white-space: nowrap;
   text-align: center;
   flex-shrink: 0;
+  color: #0c0c0d;
 }
 
 .dash-upload-btn:hover:not(:disabled) {
-  background-color: #e6e6e8;
+  background-color: #ececed;
 }
 
 .dash-upload-btn:disabled {
@@ -220,38 +213,67 @@
   to { transform: rotate(360deg); }
 }
 
-/* View toggle */
+/* View toggle segmented pill */
 .dash-view-toggle {
-  display: flex;
+  position: relative;
+  display: inline-flex;
   align-items: center;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid #26272b;
+  border-radius: 8px;
   background-color: transparent;
-  gap: 3px;
+  gap: 2px;
+  box-sizing: border-box;
+}
+
+/* Sliding active indicator pill */
+.dash-view-indicator {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 32px;
+  height: 30px;
+  border-radius: 6px;
+  background-color: #27282d;
+  pointer-events: none;
+  z-index: 0;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.dash-view-indicator--list {
+  transform: translateX(0);
+}
+
+.dash-view-indicator--grid {
+  transform: translateX(34px);
 }
 
 .dash-view-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid transparent;
+  position: relative;
+  z-index: 1;
+  width: 32px;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
   background-color: transparent;
   color: #85878c;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: color 150ms ease;
   padding: 0;
 }
 
 .dash-view-btn:hover {
   color: #ececed;
-  background-color: #18191b;
 }
 
 .dash-view-btn--active {
-  background-color: #141416;
-  border-color: #202124;
-  color: #ececed;
+  background-color: transparent !important;
+  color: #ffffff !important;
 }
 
 /* Sort dropdown */
@@ -260,25 +282,26 @@
 }
 
 .dash-sort-btn {
-  height: 34px;
+  height: 36px;
   padding: 0 12px;
   border-radius: 8px;
-  border: 1px solid #202124;
-  background-color: #141416;
+  border: 1px solid #26272b;
+  background-color: transparent;
   color: #ececed;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 400;
   display: flex;
   align-items: center;
   gap: 7px;
   cursor: pointer;
+  box-sizing: border-box;
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .dash-sort-btn:hover {
   background-color: #18191b;
-  border-color: #26272a;
+  border-color: #383a40;
 }
 
 .dash-sort-chevron {
@@ -347,14 +370,13 @@
   color: #ececed;
 }
 
-/* File Grid — flexbox so card widths are fully fixed regardless of container */
-.dash-grid {
+/* File Grid Container */
+.dash-grid-container {
   display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding-top: 18px;
-  align-content: start;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 14px;
+  padding-bottom: 90px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -363,16 +385,70 @@
   scrollbar-color: #27272a transparent;
 }
 
-/* Force ALL children to fixed 230px — no shrinking, no growing, ever */
-.dash-grid > * {
-  width: 230px !important;
-  min-width: 230px !important;
-  max-width: 230px !important;
-  flex-shrink: 0 !important;
-  flex-grow: 0 !important;
-  align-self: flex-start !important;
-  height: auto !important;
-  box-sizing: border-box !important;
+.dash-grid-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.dash-section-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #85878c;
+  margin: 0;
+  padding-left: 2px;
+  user-select: none;
+  letter-spacing: 0.2px;
+}
+
+.dash-grid-folders {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+.dash-grid-files {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+/* Fallback for generic grid */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  width: 100%;
+  padding-top: 14px;
+  padding-bottom: 90px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
+}
+
+@media (max-width: 1100px) {
+  .dash-grid-folders,
+  .dash-grid-files,
+  .dash-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 800px) {
+  .dash-grid-folders,
+  .dash-grid-files,
+  .dash-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
 }
 
 /* Toast */
@@ -486,22 +562,14 @@
   .dash-toolbar-right {
     width: 100%;
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .dash-toolbar-controls {
-    width: 100%;
-    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
   }
 
   .dash-sort-container {
     flex: 1;
-    min-width: 0;
+    min-width: 130px;
   }
 
   .dash-sort-btn {
@@ -524,23 +592,10 @@
     min-width: 170px;
   }
 
-  .dash-toolbar-ctas {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
   .dash-new-folder-btn,
   .dash-upload-btn {
-    flex: 1;
-    width: auto;
-    min-width: 0;
-    max-width: none;
+    flex: 1 1 140px;
     justify-content: center;
-    height: 38px;
-    font-size: 13.5px;
-    padding: 0 12px;
   }
 
   .dash-new-folder-btn span,
@@ -559,14 +614,22 @@
     padding: 14px 10px;
   }
 
-  .dash-grid {
-    gap: 10px;
+  .dash-new-folder-btn,
+  .dash-upload-btn {
+    flex: 1 1 calc(50% - 4px);
+    justify-content: center;
   }
 
-  .dash-grid > * {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
+  .dash-grid-container {
+    gap: 16px;
+    padding-top: 10px;
+  }
+
+  .dash-grid-folders,
+  .dash-grid-files,
+  .dash-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .dash-toast {
@@ -578,16 +641,16 @@
   }
 }
 
-@media (max-width: 350px) {
-  /* no grid overrides needed — card width is fixed on .file-card */
-
-  .dash-toolbar-ctas {
-    flex-direction: column;
+@media (max-width: 360px) {
+  .dash-content-inner {
+    padding: 12px 8px;
   }
 
   .dash-new-folder-btn,
   .dash-upload-btn {
+    flex: 1 1 100%;
     width: 100%;
   }
 }
+
 

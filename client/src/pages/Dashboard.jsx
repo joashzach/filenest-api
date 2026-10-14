@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { getFiles, getDownloadUrl, deleteFile, getUploadUrl, uploadToS3, confirmUpload, moveFile } from '../services/FileApi';
 import { getRootContents, getFolderContents, moveFolder } from '../services/FolderApi';
+import {
+  getSharedWithMe,
+  getSharedByMe,
+  leaveFileShare,
+  leaveFolderShare,
+} from '../services/ShareApi';
 import { getFileCategory, getFileExtension, formatSize, formatRelativeTime, formatDate, formatTime } from '../utils/fileUtils';
 import DashboardNavbar from '../components/DashboardNavbar';
 import Sidebar from '../components/Sidebar';
@@ -10,14 +18,20 @@ import FolderCard from '../components/FolderCard';
 import FolderRow from '../components/FolderRow';
 import FolderBreadcrumb from '../components/FolderBreadcrumb';
 import EmptyState from '../components/EmptyState';
+import SharedUsersCell from '../components/SharedUsersCell';
+import OwnerCell from '../components/OwnerCell';
+import RowActionMenu from '../components/RowActionMenu';
 import FilePreviewModal from '../components/FilePreviewModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import DeleteFolderModal from '../components/DeleteFolderModal';
 import CreateFolderModal from '../components/CreateFolderModal';
 import RenameFolderModal from '../components/RenameFolderModal';
 import RenameFileModal from '../components/RenameFileModal';
+import MoveFileModal from '../components/MoveFileModal';
 import UserSettingsModal from '../components/UserSettingsModal';
 import StorageOverview from '../components/StorageOverview';
+import ShareModal from '../components/ShareModal';
+import usePermissions from '../hooks/usePermissions';
 import {
   List,
   LayoutGrid,
@@ -27,6 +41,7 @@ import {
   AlertCircle,
   Upload,
   FolderPlus,
+  SquarePlus,
   File,
   Image,
   FileText,
@@ -34,6 +49,10 @@ import {
   Download,
   Trash2,
   Pencil,
+  Users,
+  Share2,
+  UserMinus,
+  FolderInput,
 } from 'lucide-react';
 import './Dashboard.css';
 
@@ -72,7 +91,21 @@ function renderCategoryHeaderIcon(cat) {
  * Uses the same filelist-row / filelist-col classes as FileList.
  * Defined at module level (not inside Dashboard) to avoid recreating on every render.
  */
-function FolderViewFileRow({ file, isDownloading, isDeleting, onPreview, onDownload, onDelete, onRename }) {
+function FolderViewFileRow({
+  file,
+  isDownloading,
+  isDeleting,
+  onPreview,
+  onDownload,
+  onDelete,
+  onRename,
+  onShare,
+  onLeave,
+  onMove,
+  sharedView = null,
+}) {
+  const permissions = usePermissions(file);
+
   function renderIcon() {
     const cat = getFileCategory(file);
     switch (cat) {
@@ -84,14 +117,32 @@ function FolderViewFileRow({ file, isDownloading, isDeleting, onPreview, onDownl
   }
 
   const ext = getFileExtension(file);
+  const hasGrantees = (file.granteeCount ?? file.sharedWith?.length ?? file.grantees?.length ?? 0) > 0;
+  const isSharingWithOthers =
+    sharedView === 'by-me' || (sharedView !== 'with-me' && permissions.isOwner && hasGrantees);
+  const isSharedWithMe =
+    sharedView === 'with-me' ||
+    permissions.isSharedWithMe ||
+    (!permissions.isOwner && Boolean(permissions.role || file.permission || file.myPermission || file.inherited));
+  const isShared = isSharingWithOthers || isSharedWithMe;
+  const sharedTitle = isSharedWithMe ? 'Shared with me' : 'Shared with others';
+  const ownerName = file.owner?.name || file.owner?.email;
+
+  const rowModifier =
+    sharedView === 'with-me'
+      ? 'filelist-row--with-me'
+      : sharedView === 'by-me'
+      ? 'filelist-row--by-me'
+      : '';
 
   return (
     <div
-      className="filelist-row"
+      className={`filelist-row ${rowModifier}`}
       style={{ height: '48px', minHeight: '48px', maxHeight: '48px', flexShrink: 0, flexGrow: 0, boxSizing: 'border-box' }}
       role="row"
-      draggable={true}
+      draggable={permissions.canMove}
       onDragStart={(e) => {
+        if (!permissions.canMove) return;
         const payload = JSON.stringify({ itemType: 'file', id: file._id, name: file.originalName });
         e.dataTransfer.setData('application/x-filenest-item', payload);
         e.dataTransfer.setData('application/json', payload);
@@ -107,54 +158,173 @@ function FolderViewFileRow({ file, isDownloading, isDeleting, onPreview, onDownl
       >
         {renderIcon()}
         <span className="filelist-filename">{file.originalName}</span>
+        {isShared && (
+          <span title={sharedTitle} className="file-shared-indicator">
+            <Users size={13} strokeWidth={1.5} />
+          </span>
+        )}
       </div>
-      <div className="filelist-col filelist-col-type">{ext}</div>
-      <div className="filelist-col filelist-col-size">{formatSize(file.size)}</div>
+
+      {sharedView === 'with-me' && (
+        <>
+          <div className="filelist-col filelist-col-shared-by">
+            <SharedUsersCell owner={file.owner} mode="shared-by" />
+          </div>
+          <div className="filelist-col filelist-col-role">
+            <span className="filelist-badge">
+              {permissions.isOwner || permissions.role === 'owner' || permissions.role === 'editor' ? 'Editor' : 'Viewer'}
+            </span>
+          </div>
+        </>
+      )}
+
+      {sharedView === 'by-me' && (
+        <div className="filelist-col filelist-col-shared-with">
+          <SharedUsersCell
+            grantees={file.grantees || file.sharedWith}
+            granteeCount={file.granteeCount}
+            mode="shared-with"
+          />
+        </div>
+      )}
+
+      {!sharedView && (
+        <>
+          <OwnerCell item={file} />
+          <div className="filelist-col filelist-col-type">{ext}</div>
+          <div className="filelist-col filelist-col-size">{formatSize(file.size)}</div>
+        </>
+      )}
+
       <div
         className="filelist-col filelist-col-date"
-        title={file.createdAt ? `${formatDate(file.createdAt)} ${formatTime(file.createdAt)}` : ''}
+        title={
+          sharedView
+            ? formatDate(file.sharedAt || file.updatedAt || file.createdAt) +
+              ' ' +
+              formatTime(file.sharedAt || file.updatedAt || file.createdAt)
+            : file.createdAt
+            ? `${formatDate(file.createdAt)} ${formatTime(file.createdAt)}`
+            : ''
+        }
       >
-        {formatRelativeTime(file.createdAt || file._id)}
+        {sharedView
+          ? formatDate(file.sharedAt || file.updatedAt || file.createdAt)
+          : formatRelativeTime(file.createdAt || file._id)}
       </div>
+
       <div className="filelist-col filelist-col-actions" onClick={(e) => e.stopPropagation()}>
-        {onRename && (
-          <button
-            className="filelist-action-btn"
-            title="Rename file"
-            aria-label="Rename file"
-            onClick={() => onRename(file)}
-            disabled={isDownloading || isDeleting}
-          >
-            <Pencil size={13} strokeWidth={1.5} />
-          </button>
-        )}
-        <button
-          className="filelist-action-btn"
-          title="Download file"
-          aria-label="Download file"
-          onClick={() => onDownload && onDownload(file)}
+        <RowActionMenu
           disabled={isDownloading || isDeleting}
-        >
-          <Download size={15} strokeWidth={1.5} />
-        </button>
-        <button
-          className="filelist-action-btn filelist-action-btn--delete"
-          title="Delete file"
-          aria-label="Delete file"
-          onClick={() => onDelete && onDelete(file)}
-          disabled={isDeleting || isDownloading}
-        >
-          <Trash2 size={15} strokeWidth={1.5} />
-        </button>
+          items={
+            sharedView === 'by-me'
+              ? [
+                  onShare && {
+                    key: 'share',
+                    label: 'Share',
+                    icon: Share2,
+                    onClick: () => onShare(file),
+                  },
+                  onDownload && {
+                    key: 'download',
+                    label: 'Download',
+                    icon: Download,
+                    onClick: () => onDownload(file),
+                  },
+                  onRename && {
+                    key: 'rename',
+                    label: 'Rename',
+                    icon: Pencil,
+                    onClick: () => onRename(file),
+                  },
+                  onMove && {
+                    key: 'move',
+                    label: 'Move',
+                    icon: FolderInput,
+                    onClick: () => onMove(file),
+                  },
+                  onDelete && {
+                    key: 'delete',
+                    label: 'Delete',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => onDelete(file),
+                  },
+                ]
+              : sharedView === 'with-me'
+              ? [
+                  onDownload && {
+                    key: 'download',
+                    label: 'Download',
+                    icon: Download,
+                    onClick: () => onDownload(file),
+                  },
+                  permissions.canRename && onRename && {
+                    key: 'rename',
+                    label: 'Rename',
+                    icon: Pencil,
+                    onClick: () => onRename(file),
+                  },
+                  permissions.canMove && onMove && {
+                    key: 'move',
+                    label: 'Move',
+                    icon: FolderInput,
+                    onClick: () => onMove(file),
+                  },
+                  (onDelete || onLeave) && {
+                    key: 'delete',
+                    label: 'Delete',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => (permissions.canDelete && onDelete ? onDelete(file) : onLeave ? onLeave(file) : onDelete && onDelete(file)),
+                  },
+                ]
+              : [
+                  permissions.canShare && onShare && {
+                    key: 'share',
+                    label: 'Share',
+                    icon: Share2,
+                    onClick: () => onShare(file),
+                  },
+                  (permissions.canDownload || Boolean(onDownload)) && onDownload && {
+                    key: 'download',
+                    label: 'Download',
+                    icon: Download,
+                    onClick: () => onDownload(file),
+                  },
+                  (permissions.canRename || permissions.isEditor || !permissions.isViewer) && onRename && {
+                    key: 'rename',
+                    label: 'Rename',
+                    icon: Pencil,
+                    onClick: () => onRename(file),
+                  },
+                  (permissions.canMove || permissions.isEditor || !permissions.isViewer) && onMove && {
+                    key: 'move',
+                    label: 'Move',
+                    icon: FolderInput,
+                    onClick: () => onMove(file),
+                  },
+                  (permissions.canDelete || permissions.canLeave || onLeave || onDelete) && {
+                    key: 'delete',
+                    label: 'Delete',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => (permissions.canDelete && onDelete ? onDelete(file) : onLeave ? onLeave(file) : onDelete && onDelete(file)),
+                  },
+                ]
+          }
+        />
       </div>
     </div>
   );
 }
 
 export default function Dashboard() {
+  const { user: currentUser } = useAuth();
+
   // ── All files (used for category filters & counts) ──────────────────────────
   const [allFiles, setAllFiles] = useState([]);
-  const [allFilesLoading, setAllFilesLoading] = useState(true);
+  const [allFilesInitialized, setAllFilesInitialized] = useState(false);
 
   // ── Folder browsing ─────────────────────────────────────────────────────────
   // breadcrumbs: Array<{ id: string|null, name: string }>
@@ -165,8 +335,14 @@ export default function Dashboard() {
   // Contents of the currently-open folder (folders + files in that folder)
   const [folderFolders, setFolderFolders] = useState([]);
   const [folderFiles, setFolderFiles] = useState([]);
+  // folderLoading = true ONLY until the first successful load; after that we keep
+  // the previous data visible during background refetches (never blank the list).
   const [folderLoading, setFolderLoading] = useState(true);
+  const [folderInitialized, setFolderInitialized] = useState(false);
   const [folderError, setFolderError] = useState('');
+  // Epoch counter: incremented whenever currentFolderId changes so that a slow
+  // in-flight fetch for the old folder is silently discarded.
+  const folderEpochRef = useRef(0);
 
   // ── Root directory counts (folders + files in root directory) ───────────────
   const [rootCounts, setRootCounts] = useState({ folders: 0, files: 0 });
@@ -174,7 +350,30 @@ export default function Dashboard() {
   // ── UI state ─────────────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
-  const [activeSection, setActiveSection] = useState('files'); // 'files' | 'storage'
+  const navigate = useNavigate();
+  const { section, folderId } = useParams();
+
+  // Route-derived active section ('files' | 'shared-by-me' | 'shared-with-me' | 'storage')
+  const activeSection = useMemo(() => {
+    if (section === 'shared-by-me') return 'shared-by-me';
+    if (section === 'shared-with-me') return 'shared-with-me';
+    if (section === 'storage') return 'storage';
+    return 'files';
+  }, [section]);
+
+  function handleSectionChange(sec) {
+    if (sec === 'shared-by-me') {
+      setSharedByMeBreadcrumbs([{ id: null, name: 'Shared by me' }]);
+      navigate('/dashboard/shared-by-me');
+    } else if (sec === 'shared-with-me') {
+      setSharedBreadcrumbs([{ id: null, name: 'Shared with me' }]);
+      navigate('/dashboard/shared-with-me');
+    } else if (sec === 'storage') {
+      navigate('/dashboard/storage');
+    } else {
+      navigate('/dashboard');
+    }
+  }
   const [sortBy, setSortBy] = useState('newest');
   const [viewMode, setViewMode] = useState('list');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
@@ -194,12 +393,54 @@ export default function Dashboard() {
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [renameFolderTarget, setRenameFolderTarget] = useState(null);
   const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
+  const [moveTarget, setMoveTarget] = useState(null); // { item, itemType: 'file' | 'folder' } | null
 
   // ── Status & Actions ─────────────────────────────────────────────────────────
   const [downloadingId, setDownloadingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [notification, setNotification] = useState(null);
   const [isWindowDragOver, setIsWindowDragOver] = useState(false);
+
+  // ── Shared with me state ────────────────────────────────────────────────────
+  const [sharedWithMeFiles, setSharedWithMeFiles] = useState([]);
+  const [sharedWithMeFolders, setSharedWithMeFolders] = useState([]);
+  const [sharedWithMeLoading, setSharedWithMeLoading] = useState(false);
+  const [sharedWithMeInitialized, setSharedWithMeInitialized] = useState(false);
+  const [sharedWithMeError, setSharedWithMeError] = useState('');
+  const [sharedBreadcrumbs, setSharedBreadcrumbs] = useState([{ id: null, name: 'Shared with me' }]);
+  const currentSharedFolderId = sharedBreadcrumbs[sharedBreadcrumbs.length - 1].id;
+  const [sharedFolderContents, setSharedFolderContents] = useState({ folder: null, folders: [], files: [] });
+  const sharedRootFolder =
+    currentSharedFolderId !== null && sharedBreadcrumbs.length > 1
+      ? sharedWithMeFolders.find((f) => f._id === sharedBreadcrumbs[1].id) ||
+        (sharedFolderContents.folder?._id === sharedBreadcrumbs[1].id ? sharedFolderContents.folder : null) ||
+        sharedFolderContents.folder ||
+        sharedBreadcrumbs[1]
+      : null;
+  const [sharedFolderLoading, setSharedFolderLoading] = useState(false);
+  const [sharedFolderInitialized, setSharedFolderInitialized] = useState(false);
+  const [sharedFolderError, setSharedFolderError] = useState('');
+  const [currentSharedFolderPermission, setCurrentSharedFolderPermission] = useState(null);
+
+  // ── Shared by me state ──────────────────────────────────────────────────────
+  const [sharedByMeFiles, setSharedByMeFiles] = useState([]);
+  const [sharedByMeFolders, setSharedByMeFolders] = useState([]);
+  const [sharedByMeLoading, setSharedByMeLoading] = useState(false);
+  const [sharedByMeInitialized, setSharedByMeInitialized] = useState(false);
+  const [sharedByMeError, setSharedByMeError] = useState('');
+  const [sharedByMeBreadcrumbs, setSharedByMeBreadcrumbs] = useState([{ id: null, name: 'Shared by me' }]);
+  const currentSharedByMeFolderId = sharedByMeBreadcrumbs[sharedByMeBreadcrumbs.length - 1].id;
+  const sharedByMeRootFolder =
+    currentSharedByMeFolderId !== null && sharedByMeBreadcrumbs.length > 1
+      ? sharedByMeFolders.find((f) => f._id === sharedByMeBreadcrumbs[1].id) || sharedByMeBreadcrumbs[1]
+      : null;
+  const [sharedByMeFolderContents, setSharedByMeFolderContents] = useState({ folders: [], files: [] });
+  const [sharedByMeFolderLoading, setSharedByMeFolderLoading] = useState(false);
+  const [sharedByMeFolderInitialized, setSharedByMeFolderInitialized] = useState(false);
+  const [sharedByMeFolderError, setSharedByMeFolderError] = useState('');
+
+  // ── Share modal target ──────────────────────────────────────────────────────
+  const [shareModalTarget, setShareModalTarget] = useState(null); // { item, itemType: 'file' | 'folder' }
 
   // ── Whether we're inside a folder (breadcrumbs > 1 = root + at least 1 folder)
   const isInFolder = breadcrumbs.length > 1;
@@ -224,6 +465,7 @@ export default function Dashboard() {
     createFolderOpen ||
     renameFolderTarget ||
     deleteFolderTarget ||
+    shareModalTarget ||
     mobileMenuOpen
   );
 
@@ -245,7 +487,7 @@ export default function Dashboard() {
     } catch {
       // Non-critical — categories may show stale counts but browsing still works
     } finally {
-      setAllFilesLoading(false);
+      setAllFilesInitialized(true);
     }
   }, []);
 
@@ -270,13 +512,18 @@ export default function Dashboard() {
   }, [fetchRootCounts]);
 
   // ── Fetch current folder contents ────────────────────────────────────────────
+  // Only shows skeleton on very first load (folderInitialized === false);
+  // subsequent refetches keep the existing list visible.
   const fetchCurrentContents = useCallback(async () => {
     setFolderError('');
-    setFolderLoading(true);
+    const epoch = ++folderEpochRef.current;
+    // Only show the loading skeleton before the very first successful load.
+    setFolderLoading((prev) => prev); // no-op — spinner only shown when !folderInitialized
     try {
       let res;
       if (currentFolderId === null) {
         res = await getRootContents();
+        if (folderEpochRef.current !== epoch) return; // stale response, discard
         const f = res.data?.folders || [];
         const fi = res.data?.files || [];
         setFolderFolders(f);
@@ -284,21 +531,186 @@ export default function Dashboard() {
         setRootCounts({ folders: f.length, files: fi.length });
       } else {
         res = await getFolderContents(currentFolderId);
+        if (folderEpochRef.current !== epoch) return;
         setFolderFolders(res.data?.folders || []);
         setFolderFiles(res.data?.files || []);
       }
+      setFolderLoading(false);
+      setFolderInitialized(true);
     } catch (err) {
+      if (folderEpochRef.current !== epoch) return;
       setFolderError(err.message || 'Failed to load folder contents.');
-    } finally {
       setFolderLoading(false);
     }
   }, [currentFolderId]);
+
+  useEffect(() => {
+    // Reset initialized flag when folder changes so skeleton shows for the new folder
+    setFolderInitialized(false);
+    setFolderLoading(true);
+    // Invalidate any in-flight fetch from the previous folder
+    folderEpochRef.current++;
+  }, [currentFolderId]);
+
+  // fetchCurrentContents also increments the epoch at the START of each call,
+  // ensuring that only the most-recent call's response is applied.
+  // The reset effect above pre-bumps so an in-flight old-folder request is discarded
+  // immediately; fetchCurrentContents will bump again and capture that new value.
 
   useEffect(() => {
     if (activeSection === 'files' && activeCategory === 'all') {
       fetchCurrentContents();
     }
   }, [fetchCurrentContents, activeSection, activeCategory]);
+
+  // ── Fetch Shared with me ─────────────────────────────────────────────────────
+  // Loading spinner shown only on first load (sharedWithMeInitialized === false)
+  const fetchSharedWithMe = useCallback(async () => {
+    setSharedWithMeError('');
+    try {
+      const res = await getSharedWithMe();
+      setSharedWithMeFiles(res.data?.files || []);
+      setSharedWithMeFolders(res.data?.folders || []);
+      setSharedWithMeInitialized(true);
+    } catch (err) {
+      setSharedWithMeError(err.message || 'Failed to load items shared with you.');
+    } finally {
+      setSharedWithMeLoading(false);
+    }
+  }, []);
+
+  // ── Fetch Shared by me ───────────────────────────────────────────────────────
+  // Loading spinner shown only on first load (sharedByMeInitialized === false)
+  const fetchSharedByMe = useCallback(async () => {
+    setSharedByMeError('');
+    try {
+      const res = await getSharedByMe();
+      setSharedByMeFiles(res.data?.files || []);
+      setSharedByMeFolders(res.data?.folders || []);
+      setSharedByMeInitialized(true);
+    } catch (err) {
+      setSharedByMeError(err.message || 'Failed to load items you have shared.');
+    } finally {
+      setSharedByMeLoading(false);
+    }
+  }, []);
+
+  // ── Fetch shared folder contents when browsing inside a shared folder ───────────
+  // Loading spinner only on first entry into this folder (sharedFolderInitialized)
+  const fetchSharedFolderContents = useCallback(async () => {
+    if (!currentSharedFolderId) return;
+    setSharedFolderError('');
+    try {
+      const res = await getFolderContents(currentSharedFolderId);
+      setSharedFolderContents({
+        folder: res.data?.folder || null,
+        folders: res.data?.folders || [],
+        files: res.data?.files || [],
+      });
+      if (res.data?.myPermission) {
+        setCurrentSharedFolderPermission(res.data.myPermission);
+      }
+      if (res.data?.folder?.owner) {
+        setSharedBreadcrumbs((prev) => {
+          if (prev.length > 1 && (!prev[1].owner || !prev[1].owner.name)) {
+            const next = [...prev];
+            next[1] = { ...next[1], owner: res.data.folder.owner };
+            return next;
+          }
+          return prev;
+        });
+      }
+      setSharedFolderInitialized(true);
+      setSharedFolderLoading(false);
+    } catch (err) {
+      if (
+        err.status === 404 ||
+        err.message?.includes('404') ||
+        err.message?.includes('not exist') ||
+        err.message?.includes('access')
+      ) {
+        setSharedBreadcrumbs([{ id: null, name: 'Shared with me' }]);
+        showNotification('You no longer have access to this item.', 'error');
+        fetchSharedWithMe();
+      } else {
+        setSharedFolderError(err.message || 'Failed to load folder contents.');
+        setSharedFolderLoading(false);
+      }
+    }
+  }, [currentSharedFolderId, fetchSharedWithMe]);
+
+  // ── Fetch Shared by me folder contents when browsing inside a folder ─────────
+  // Loading spinner only on first entry into this folder
+  const fetchSharedByMeFolderContents = useCallback(async () => {
+    if (!currentSharedByMeFolderId) return;
+    setSharedByMeFolderError('');
+    try {
+      const res = await getFolderContents(currentSharedByMeFolderId);
+      setSharedByMeFolderContents({
+        folders: res.data?.folders || [],
+        files: res.data?.files || [],
+      });
+      if (res.data?.folder?.name) {
+        setSharedByMeBreadcrumbs((prev) => {
+          if (
+            prev.length > 1 &&
+            prev[prev.length - 1].id === currentSharedByMeFolderId &&
+            prev[prev.length - 1].name !== res.data.folder.name
+          ) {
+            const next = [...prev];
+            next[next.length - 1] = { ...next[next.length - 1], name: res.data.folder.name };
+            return next;
+          }
+          return prev;
+        });
+      }
+      setSharedByMeFolderInitialized(true);
+      setSharedByMeFolderLoading(false);
+    } catch (err) {
+      if (
+        err.status === 404 ||
+        err.message?.includes('404') ||
+        err.message?.includes('not exist')
+      ) {
+        setSharedByMeBreadcrumbs([{ id: null, name: 'Shared by me' }]);
+        showNotification('This folder no longer exists.', 'error');
+        navigate('/dashboard/shared-by-me');
+        fetchSharedByMe();
+      } else {
+        setSharedByMeFolderError(err.message || 'Failed to load folder contents.');
+        setSharedByMeFolderLoading(false);
+      }
+    }
+  }, [currentSharedByMeFolderId, fetchSharedByMe, navigate]);
+
+  useEffect(() => {
+    fetchSharedWithMe();
+    fetchSharedByMe();
+  }, [fetchSharedWithMe, fetchSharedByMe]);
+
+  useEffect(() => {
+    if (activeSection === 'shared-with-me') {
+      if (currentSharedFolderId !== null) {
+        fetchSharedFolderContents();
+      } else {
+        fetchSharedWithMe();
+      }
+    } else if (activeSection === 'shared-by-me') {
+      if (currentSharedByMeFolderId !== null) {
+        fetchSharedByMeFolderContents();
+      } else {
+        fetchSharedByMe();
+      }
+    }
+  }, [
+    activeSection,
+    currentSharedFolderId,
+    currentSharedByMeFolderId,
+    fetchSharedFolderContents,
+    fetchSharedWithMe,
+    fetchSharedByMeFolderContents,
+    fetchSharedByMe,
+  ]);
 
   const handleFilesUploadRef = useRef();
 
@@ -380,11 +792,141 @@ export default function Dashboard() {
     });
   }
 
+  // ── Sync Shared with me breadcrumbs when route folderId changes ─────────────
+  useEffect(() => {
+    if (section === 'shared-with-me') {
+      if (folderId) {
+        setSharedBreadcrumbs((prev) => {
+          if (prev[prev.length - 1]?.id === folderId) return prev;
+          const found =
+            sharedWithMeFolders.find((f) => f._id === folderId) ||
+            sharedFolderContents.folders.find((f) => f._id === folderId);
+          return [
+            { id: null, name: 'Shared with me' },
+            {
+              id: folderId,
+              name: found?.name || 'Folder',
+              owner: found?.owner || sharedFolderContents.folder?.owner || prev[1]?.owner || null,
+            },
+          ];
+        });
+      } else {
+        setSharedBreadcrumbs([{ id: null, name: 'Shared with me' }]);
+        setCurrentSharedFolderPermission(null);
+      }
+    }
+  }, [section, folderId, sharedWithMeFolders, sharedFolderContents.folders, sharedFolderContents.folder]);
+
+  // ── Shared with me navigation ───────────────────────────────────────────────
+  function handleOpenSharedFolder(folder) {
+    if (!folder?._id) return;
+    setCurrentSharedFolderPermission(folder.myPermission || folder.permission || 'viewer');
+    setSharedBreadcrumbs((prev) => [
+      ...prev,
+      {
+        id: folder._id,
+        name: folder.name,
+        owner: folder.owner || prev[1]?.owner || prev[prev.length - 1]?.owner || null,
+      },
+    ]);
+    setSearchQuery('');
+    navigate(`/dashboard/shared-with-me/${folder._id}`);
+  }
+
+  function handleSharedBreadcrumbNavigate(targetId) {
+    if (targetId === null) {
+      setSharedBreadcrumbs([{ id: null, name: 'Shared with me' }]);
+      setCurrentSharedFolderPermission(null);
+      navigate('/dashboard/shared-with-me');
+    } else {
+      const idx = sharedBreadcrumbs.findIndex((b) => b.id === targetId);
+      if (idx !== -1) {
+        setSharedBreadcrumbs(sharedBreadcrumbs.slice(0, idx + 1));
+        navigate(`/dashboard/shared-with-me/${targetId}`);
+      }
+    }
+  }
+
+  // ── Sync Shared by me breadcrumbs when route folderId changes ───────────────
+  useEffect(() => {
+    if (section === 'shared-by-me') {
+      if (folderId) {
+        setSharedByMeBreadcrumbs((prev) => {
+          if (prev[prev.length - 1]?.id === folderId) return prev;
+          const found =
+            sharedByMeFolders.find((f) => f._id === folderId) ||
+            sharedByMeFolderContents.folders.find((f) => f._id === folderId);
+          return [
+            { id: null, name: 'Shared by me' },
+            { id: folderId, name: found?.name || 'Folder' },
+          ];
+        });
+      } else {
+        setSharedByMeBreadcrumbs([{ id: null, name: 'Shared by me' }]);
+      }
+    }
+  }, [section, folderId, sharedByMeFolders, sharedByMeFolderContents.folders]);
+
+  // ── Shared by me navigation ─────────────────────────────────────────────────
+  function handleOpenSharedByMeFolder(folder) {
+    if (!folder?._id) return;
+    setSharedByMeBreadcrumbs((prev) => [...prev, { id: folder._id, name: folder.name }]);
+    setSearchQuery('');
+    navigate(`/dashboard/shared-by-me/${folder._id}`);
+  }
+
+  function handleSharedByMeBreadcrumbNavigate(targetId) {
+    if (targetId === null) {
+      setSharedByMeBreadcrumbs([{ id: null, name: 'Shared by me' }]);
+      navigate('/dashboard/shared-by-me');
+    } else {
+      const idx = sharedByMeBreadcrumbs.findIndex((b) => b.id === targetId);
+      if (idx !== -1) {
+        setSharedByMeBreadcrumbs(sharedByMeBreadcrumbs.slice(0, idx + 1));
+        navigate(`/dashboard/shared-by-me/${targetId}`);
+      }
+    }
+  }
+
+  // ── Leave share handler (remove own direct grant or delete inherited item) ───
+  async function handleLeaveShare(item, itemType = 'file') {
+    // If inside a shared folder or item is inherited, removing it means deleting it from the shared folder for editors
+    if (item.inherited || currentSharedFolderId !== null) {
+      if (itemType === 'folder') {
+        setDeleteFolderTarget(item);
+      } else {
+        setDeleteConfirmFile(item);
+      }
+      return;
+    }
+
+    try {
+      const res =
+        itemType === 'folder'
+          ? await leaveFolderShare(item._id)
+          : await leaveFileShare(item._id);
+
+      if (res.data?.stillHasAccess) {
+        const parentName = res.data?.throughFolder?.name || 'a parent folder';
+        showNotification(`You still have access through '${parentName}'.`);
+      } else {
+        showNotification('Removed from Shared with me.');
+      }
+      fetchSharedWithMe();
+      handleContentsRefresh();
+    } catch (err) {
+      showNotification(err.message || 'Failed to remove share.', 'error');
+    }
+  }
+
   // ── Category sidebar changes: reset to root & switch category ────────────────
   function handleCategoryChange(categoryId) {
     setBreadcrumbs([{ id: null, name: 'My Files' }]);
     setActiveCategory(categoryId);
     setSearchQuery('');
+    if (activeSection !== 'files') {
+      navigate('/dashboard');
+    }
   }
 
   // ── Download handler ─────────────────────────────────────────────────────────
@@ -417,30 +959,66 @@ export default function Dashboard() {
     }
   }
 
-  // ── Delete file handler ───────────────────────────────────────────────────────
+  // ── Delete file handler (optimistic) ─────────────────────────────────────────
   async function handleDeleteConfirm(file) {
     if (!file?._id) return;
     setDeletingId(file._id);
+
+    // Snapshot for rollback
+    const prevFolderFiles = folderFiles;
+    const prevAllFiles = allFiles;
+    const prevSharedWithMeFiles = sharedWithMeFiles;
+    const prevSharedByMeFiles = sharedByMeFiles;
+    const prevSharedFolderFiles = sharedFolderContents.files;
+    const prevSharedByMeFolderFiles = sharedByMeFolderContents.files;
+
+    // Optimistic: remove immediately from all lists
+    const removeFile = (arr) => arr.filter((f) => f._id !== file._id);
+    setFolderFiles(removeFile);
+    setAllFiles(removeFile);
+    setSharedWithMeFiles(removeFile);
+    setSharedByMeFiles(removeFile);
+    setSharedFolderContents((prev) => ({ ...prev, files: removeFile(prev.files) }));
+    setSharedByMeFolderContents((prev) => ({ ...prev, files: removeFile(prev.files) }));
+    setRootCounts((prev) => ({ ...prev, files: Math.max(0, prev.files - 1) }));
+
+    setDeleteConfirmFile(null);
+    if (previewFile?._id === file._id) setPreviewFile(null);
+    showNotification(`Deleted ${file.originalName}`);
+
     try {
       await deleteFile(file._id);
-      showNotification(`Deleted ${file.originalName}`);
-      setDeleteConfirmFile(null);
-      if (previewFile?._id === file._id) setPreviewFile(null);
-      // Refresh both views
-      await Promise.all([fetchCurrentContents(), fetchAllFiles(), fetchRootCounts()]);
+      // Background reconcile (no loading state)
+      handleContentsRefresh();
     } catch (err) {
+      // Rollback
+      setFolderFiles(prevFolderFiles);
+      setAllFiles(prevAllFiles);
+      setSharedWithMeFiles(prevSharedWithMeFiles);
+      setSharedByMeFiles(prevSharedByMeFiles);
+      setSharedFolderContents((prev) => ({ ...prev, files: prevSharedFolderFiles }));
+      setSharedByMeFolderContents((prev) => ({ ...prev, files: prevSharedByMeFolderFiles }));
+      setRootCounts((prev) => ({ ...prev, files: prev.files + 1 }));
       showNotification(err.message || 'Delete failed.', 'error');
     } finally {
       setDeletingId(null);
     }
   }
 
-  // ── After any folder/file mutation: refresh ───────────────────────────────────
-  async function handleContentsRefresh() {
-    await Promise.all([fetchCurrentContents(), fetchAllFiles(), fetchRootCounts()]);
+  // ── After any mutation: background reconcile (never blanks the list) ──────────
+  function handleContentsRefresh() {
+    // Fire all fetches concurrently; they silently update state in the background.
+    // None of them set a loading=true, so the current data stays visible.
+    fetchCurrentContents();
+    fetchAllFiles();
+    fetchRootCounts();
+    fetchSharedWithMe();
+    fetchSharedByMe();
+    if (currentSharedFolderId) fetchSharedFolderContents();
+    if (currentSharedByMeFolderId) fetchSharedByMeFolderContents();
   }
 
-  // ── Drag & drop move handler for files & folders ────────────────────────────
+  // ── Drag & drop move handler for files & folders (optimistic) ───────────────
   const handleDropItemOnFolder = useCallback(
     async (targetFolder, itemData) => {
       if (!itemData || !itemData.id) return;
@@ -452,6 +1030,15 @@ export default function Dashboard() {
         return;
       }
 
+      // Optimistic: remove from current view immediately
+      const snapshotFolderFolders = folderFolders;
+      const snapshotFolderFiles = folderFiles;
+      if (itemData.itemType === 'file') {
+        setFolderFiles((prev) => prev.filter((f) => f._id !== itemData.id));
+      } else {
+        setFolderFolders((prev) => prev.filter((f) => f._id !== itemData.id));
+      }
+
       try {
         if (itemData.itemType === 'file') {
           await moveFile(itemData.id, targetFolderId);
@@ -460,12 +1047,15 @@ export default function Dashboard() {
           await moveFolder(itemData.id, targetFolderId);
           showNotification(`Moved folder "${itemData.name}" into "${targetFolderName}".`);
         }
-        await handleContentsRefresh();
+        handleContentsRefresh();
       } catch (err) {
+        // Rollback
+        setFolderFolders(snapshotFolderFolders);
+        setFolderFiles(snapshotFolderFiles);
         showNotification(err.message || 'Failed to move item.', 'error');
       }
     },
-    [fetchCurrentContents, fetchAllFiles, fetchRootCounts]
+    [folderFolders, folderFiles, fetchCurrentContents, fetchAllFiles, fetchRootCounts]
   );
 
   // ── Direct file upload handler (native file browsing) ─────────────────────────
@@ -520,8 +1110,39 @@ export default function Dashboard() {
         );
 
         // 3. Confirm metadata
-        const targetFolder = isMyFilesView ? currentFolderId : null;
-        await confirmUpload({ originalName, mimeType, size, key, folder: targetFolder || null });
+        const targetFolder = isSharedWithMeView
+          ? currentSharedFolderId
+          : isSharedByMeView
+          ? currentSharedByMeFolderId
+          : isMyFilesView
+          ? currentFolderId
+          : null;
+        const confirmRes = await confirmUpload({ originalName, mimeType, size, key, folder: targetFolder || null });
+        const uploadedFile = confirmRes?.data;
+        if (uploadedFile?._id) {
+          const fileToInsert = {
+            ...uploadedFile,
+            owner: (uploadedFile.owner && typeof uploadedFile.owner === 'object' && (uploadedFile.owner.name || uploadedFile.owner.email))
+              ? uploadedFile.owner
+              : {
+                  _id: currentUser?._id,
+                  name: currentUser?.name,
+                  email: currentUser?.email,
+                  avatar: currentUser?.avatar || null,
+                },
+          };
+          if (isSharedWithMeView && currentSharedFolderId) {
+            setSharedFolderContents((prev) => ({ ...prev, files: [fileToInsert, ...prev.files] }));
+          } else if (isSharedByMeView && currentSharedByMeFolderId) {
+            setSharedByMeFolderContents((prev) => ({ ...prev, files: [fileToInsert, ...prev.files] }));
+          } else {
+            setFolderFiles((prev) => [fileToInsert, ...prev]);
+            setAllFiles((prev) => [fileToInsert, ...prev]);
+            if (currentFolderId === null) {
+              setRootCounts((prev) => ({ ...prev, files: prev.files + 1 }));
+            }
+          }
+        }
 
         completedCount++;
         successCount++;
@@ -542,12 +1163,13 @@ export default function Dashboard() {
 
       await Promise.all(workers);
 
-      await handleContentsRefresh();
       showNotification(
         successCount === 1
           ? `Uploaded ${files[0].name} successfully!`
           : `Uploaded ${successCount} files successfully!`
       );
+      // Background reconcile after upload — keeps current list visible
+      handleContentsRefresh();
     } catch (err) {
       showNotification(err.message || 'File upload failed. Please try again.', 'error');
     } finally {
@@ -636,6 +1258,257 @@ export default function Dashboard() {
     return result;
   }, [folderFolders, searchQuery, sortBy]);
 
+  // ── Filter & sort files for Shared with me ────────────────────────────────────
+  const sharedWithMeFilteredFiles = useMemo(() => {
+    const rawSource = currentSharedFolderId !== null ? sharedFolderContents.files : sharedWithMeFiles;
+
+    const mainFolderUser =
+      sharedRootFolder?.owner ||
+      sharedFolderContents.folder?.owner ||
+      sharedWithMeFolders.find((f) => f._id === currentSharedFolderId)?.owner ||
+      sharedWithMeFolders.find((f) => f._id === sharedBreadcrumbs[1]?.id)?.owner ||
+      null;
+
+    const currentUserId = (currentUser?._id || currentUser?.id)?.toString();
+    const currentUserEmail = currentUser?.email?.toLowerCase();
+
+    const source = rawSource.map((file) => {
+      const fileOwnerId =
+        typeof file.owner === 'object' && file.owner !== null
+          ? (file.owner._id || file.owner.id || '').toString()
+          : String(file.owner || '');
+      const fileOwnerEmail =
+        typeof file.owner === 'object' && file.owner !== null
+          ? file.owner.email?.toLowerCase()
+          : (typeof file.owner === 'string' && file.owner.includes('@') ? file.owner.toLowerCase() : null);
+
+      const isMine = Boolean(
+        (currentUserId && fileOwnerId && currentUserId === fileOwnerId) ||
+        (currentUserEmail && fileOwnerEmail && currentUserEmail === fileOwnerEmail) ||
+        file.myPermission === 'owner'
+      );
+
+      if (isMine) {
+        return {
+          ...file,
+          owner: (typeof file.owner === 'object' && file.owner !== null && (file.owner.name || file.owner.email))
+            ? file.owner
+            : {
+                _id: currentUser?._id,
+                name: currentUser?.name,
+                email: currentUser?.email,
+                avatar: currentUser?.avatar || null,
+              },
+        };
+      }
+
+      const hasValidOwner =
+        file.owner &&
+        typeof file.owner === 'object' &&
+        (file.owner.name || file.owner.email) &&
+        file.owner.name !== 'Unknown';
+
+      if (!hasValidOwner && mainFolderUser) {
+        return { ...file, owner: mainFolderUser };
+      }
+      return file;
+    });
+
+    let result = [...source];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((f) => (f.originalName || '').toLowerCase().includes(query));
+    }
+
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest': return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        case 'oldest': return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        case 'name-asc': return (a.originalName || '').localeCompare(a.originalName || '');
+        case 'name-desc': return (b.originalName || '').localeCompare(a.originalName || '');
+        case 'size-desc': return (b.size || 0) - (a.size || 0);
+        case 'size-asc': return (a.size || 0) - (b.size || 0);
+        default: return 0;
+      }
+    });
+
+    return result;
+  }, [
+    currentSharedFolderId,
+    sharedFolderContents.files,
+    sharedFolderContents.folder,
+    sharedWithMeFiles,
+    sharedWithMeFolders,
+    sharedRootFolder,
+    sharedBreadcrumbs,
+    searchQuery,
+    sortBy,
+    currentUser,
+  ]);
+
+  // ── Filter & sort folders for Shared with me ──────────────────────────────────
+  const sharedWithMeFilteredFolders = useMemo(() => {
+    const rawSource = currentSharedFolderId !== null ? sharedFolderContents.folders : sharedWithMeFolders;
+
+    const mainFolderUser =
+      sharedRootFolder?.owner ||
+      sharedFolderContents.folder?.owner ||
+      sharedWithMeFolders.find((f) => f._id === currentSharedFolderId)?.owner ||
+      sharedWithMeFolders.find((f) => f._id === sharedBreadcrumbs[1]?.id)?.owner ||
+      null;
+
+    const currentUserId = (currentUser?._id || currentUser?.id)?.toString();
+    const currentUserEmail = currentUser?.email?.toLowerCase();
+
+    const source = rawSource.map((fldr) => {
+      const fldrOwnerId =
+        typeof fldr.owner === 'object' && fldr.owner !== null
+          ? (fldr.owner._id || fldr.owner.id || '').toString()
+          : String(fldr.owner || '');
+      const fldrOwnerEmail =
+        typeof fldr.owner === 'object' && fldr.owner !== null
+          ? fldr.owner.email?.toLowerCase()
+          : (typeof fldr.owner === 'string' && fldr.owner.includes('@') ? fldr.owner.toLowerCase() : null);
+
+      const isMine = Boolean(
+        (currentUserId && fldrOwnerId && currentUserId === fldrOwnerId) ||
+        (currentUserEmail && fldrOwnerEmail && currentUserEmail === fldrOwnerEmail) ||
+        fldr.myPermission === 'owner'
+      );
+
+      if (isMine) {
+        return {
+          ...fldr,
+          owner: (typeof fldr.owner === 'object' && fldr.owner !== null && (fldr.owner.name || fldr.owner.email))
+            ? fldr.owner
+            : {
+                _id: currentUser?._id,
+                name: currentUser?.name,
+                email: currentUser?.email,
+                avatar: currentUser?.avatar || null,
+              },
+        };
+      }
+
+      const hasValidOwner =
+        fldr.owner &&
+        typeof fldr.owner === 'object' &&
+        (fldr.owner.name || fldr.owner.email) &&
+        fldr.owner.name !== 'Unknown';
+
+      if (!hasValidOwner && mainFolderUser) {
+        return { ...fldr, owner: mainFolderUser };
+      }
+      return fldr;
+    });
+
+    let result = [...source];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((f) => (f.name || '').toLowerCase().includes(query));
+    }
+
+    result.sort((a, b) => {
+      const aDate = new Date(a.createdAt || (a._id ? parseInt(a._id.toString().substring(0, 8), 16) * 1000 : 0));
+      const bDate = new Date(b.createdAt || (b._id ? parseInt(b._id.toString().substring(0, 8), 16) * 1000 : 0));
+      if (sortBy === 'name-desc') return (b.name || '').localeCompare(a.name || '');
+      if (sortBy === 'oldest') return aDate - bDate;
+      if (sortBy === 'newest') return bDate - aDate;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    return result;
+  }, [
+    currentSharedFolderId,
+    sharedFolderContents.folders,
+    sharedFolderContents.folder,
+    sharedWithMeFolders,
+    sharedRootFolder,
+    sharedBreadcrumbs,
+    searchQuery,
+    sortBy,
+    currentUser,
+  ]);
+
+  // ── Filter & sort files for Shared by me ──────────────────────────────────────
+  const sharedByMeFilteredFiles = useMemo(() => {
+    const rawSource = currentSharedByMeFolderId !== null ? sharedByMeFolderContents.files : sharedByMeFiles;
+    const source = rawSource.map((file) => {
+      if ((file.grantees && file.grantees.length > 0) || file.granteeCount > 0) {
+        return file;
+      }
+      if (sharedByMeRootFolder) {
+        return {
+          ...file,
+          grantees: sharedByMeRootFolder.grantees || sharedByMeRootFolder.sharedWith || [],
+          granteeCount: sharedByMeRootFolder.granteeCount || (sharedByMeRootFolder.grantees?.length ?? 0),
+          sharedAt: file.sharedAt || sharedByMeRootFolder.sharedAt,
+        };
+      }
+      return file;
+    });
+
+    let result = [...source];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((f) => (f.originalName || '').toLowerCase().includes(query));
+    }
+
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest': return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        case 'oldest': return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        case 'name-asc': return (a.originalName || '').localeCompare(a.originalName || '');
+        case 'name-desc': return (b.originalName || '').localeCompare(a.originalName || '');
+        case 'size-desc': return (b.size || 0) - (a.size || 0);
+        case 'size-asc': return (a.size || 0) - (b.size || 0);
+        default: return 0;
+      }
+    });
+
+    return result;
+  }, [currentSharedByMeFolderId, sharedByMeFolderContents.files, sharedByMeFiles, sharedByMeRootFolder, searchQuery, sortBy]);
+
+  // ── Filter & sort folders for Shared by me ────────────────────────────────────
+  const sharedByMeFilteredFolders = useMemo(() => {
+    const rawSource = currentSharedByMeFolderId !== null ? sharedByMeFolderContents.folders : sharedByMeFolders;
+    const source = rawSource.map((fldr) => {
+      if ((fldr.grantees && fldr.grantees.length > 0) || fldr.granteeCount > 0) {
+        return fldr;
+      }
+      if (sharedByMeRootFolder) {
+        return {
+          ...fldr,
+          grantees: sharedByMeRootFolder.grantees || sharedByMeRootFolder.sharedWith || [],
+          granteeCount: sharedByMeRootFolder.granteeCount || (sharedByMeRootFolder.grantees?.length ?? 0),
+          sharedAt: fldr.sharedAt || sharedByMeRootFolder.sharedAt,
+        };
+      }
+      return fldr;
+    });
+
+    let result = [...source];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((f) => (f.name || '').toLowerCase().includes(query));
+    }
+
+    result.sort((a, b) => {
+      const aDate = new Date(a.createdAt || (a._id ? parseInt(a._id.toString().substring(0, 8), 16) * 1000 : 0));
+      const bDate = new Date(b.createdAt || (b._id ? parseInt(b._id.toString().substring(0, 8), 16) * 1000 : 0));
+      if (sortBy === 'name-desc') return (b.name || '').localeCompare(a.name || '');
+      if (sortBy === 'oldest') return aDate - bDate;
+      if (sortBy === 'newest') return bDate - aDate;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    return result;
+  }, [currentSharedByMeFolderId, sharedByMeFolderContents.folders, sharedByMeFolders, sharedByMeRootFolder, searchQuery, sortBy]);
+
   // ── Category counts ───────────────────────────────────────────────────────────
   const categoryCounts = useMemo(() => {
     const rootTotal = (rootCounts?.folders || 0) + (rootCounts?.files || 0);
@@ -654,10 +1527,16 @@ export default function Dashboard() {
   // Determine what section we're showing
   const isCategoryView = activeSection === 'files' && activeCategory !== 'all';
   const isMyFilesView = activeSection === 'files' && activeCategory === 'all';
+  const isSharedWithMeView = activeSection === 'shared-with-me';
+  const isSharedByMeView = activeSection === 'shared-by-me';
 
   let pageTitle;
   if (isMyFilesView) {
     pageTitle = breadcrumbs[breadcrumbs.length - 1]?.name || 'My Files';
+  } else if (isSharedWithMeView) {
+    pageTitle = sharedBreadcrumbs[sharedBreadcrumbs.length - 1]?.name || 'Shared with me';
+  } else if (isSharedByMeView) {
+    pageTitle = sharedByMeBreadcrumbs[sharedByMeBreadcrumbs.length - 1]?.name || 'Shared by me';
   } else {
     pageTitle = CATEGORY_TITLES[activeCategory] || 'All files';
   }
@@ -667,6 +1546,22 @@ export default function Dashboard() {
   if (isMyFilesView) {
     const fCount = folderFilteredFolders.length;
     const fiCount = folderFilteredFiles.length;
+    const total = fCount + fiCount;
+    const parts = [];
+    if (fCount > 0) parts.push(`${fCount} ${fCount === 1 ? 'folder' : 'folders'}`);
+    if (fiCount > 0) parts.push(`${fiCount} ${fiCount === 1 ? 'file' : 'files'}`);
+    countLabel = total === 0 ? '' : parts.join(', ');
+  } else if (isSharedWithMeView) {
+    const fCount = sharedWithMeFilteredFolders.length;
+    const fiCount = sharedWithMeFilteredFiles.length;
+    const total = fCount + fiCount;
+    const parts = [];
+    if (fCount > 0) parts.push(`${fCount} ${fCount === 1 ? 'folder' : 'folders'}`);
+    if (fiCount > 0) parts.push(`${fiCount} ${fiCount === 1 ? 'file' : 'files'}`);
+    countLabel = total === 0 ? '' : parts.join(', ');
+  } else if (isSharedByMeView) {
+    const fCount = sharedByMeFilteredFolders.length;
+    const fiCount = sharedByMeFilteredFiles.length;
     const total = fCount + fiCount;
     const parts = [];
     if (fCount > 0) parts.push(`${fCount} ${fCount === 1 ? 'folder' : 'folders'}`);
@@ -723,7 +1618,8 @@ export default function Dashboard() {
 
   // ── Render My Files content ───────────────────────────────────────────────────
   function renderMyFiles() {
-    if (folderLoading) {
+    // Show skeleton only until the very first load completes
+    if (!folderInitialized && folderLoading) {
       return (
         <div className="filelist-status">
           <div className="filelist-spinner" />
@@ -748,31 +1644,49 @@ export default function Dashboard() {
 
     if (viewMode === 'grid') {
       return (
-        <div className="dash-grid">
-          {/* Folders first */}
-          {folderFilteredFolders.map((folder) => (
-            <FolderCard
-              key={folder._id}
-              folder={folder}
-              onOpen={handleOpenFolder}
-              onRename={setRenameFolderTarget}
-              onDelete={setDeleteFolderTarget}
-              onDropItem={handleDropItemOnFolder}
-            />
-          ))}
-          {/* Then files */}
-          {folderFilteredFiles.map((file) => (
-            <FileCard
-              key={file._id}
-              file={file}
-              onDownload={handleDownload}
-              onDelete={(f) => setDeleteConfirmFile(f)}
-              onPreview={(f) => setPreviewFile(f)}
-              onRename={(f) => setRenameFileTarget(f)}
-              isDownloading={downloadingId === file._id}
-              isDeleting={deletingId === file._id}
-            />
-          ))}
+        <div className="dash-grid-container">
+          {folderFilteredFolders.length > 0 && (
+            <div className="dash-grid-section">
+              <h3 className="dash-section-title">Folders</h3>
+              <div className="dash-grid-folders">
+                {folderFilteredFolders.map((folder) => (
+                  <FolderCard
+                    key={folder._id}
+                    folder={folder}
+                    onOpen={handleOpenFolder}
+                    onRename={setRenameFolderTarget}
+                    onDelete={setDeleteFolderTarget}
+                    onShare={(f) => setShareModalTarget({ item: f, itemType: 'folder' })}
+                    onMove={(f) => setMoveTarget({ item: f, itemType: 'folder' })}
+                    onLeave={(f) => handleLeaveShare(f, 'folder')}
+                    onDropItem={handleDropItemOnFolder}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {folderFilteredFiles.length > 0 && (
+            <div className="dash-grid-section">
+              <h3 className="dash-section-title">Files</h3>
+              <div className="dash-grid-files">
+                {folderFilteredFiles.map((file) => (
+                  <FileCard
+                    key={file._id}
+                    file={file}
+                    onDownload={handleDownload}
+                    onDelete={(f) => setDeleteConfirmFile(f)}
+                    onPreview={(f) => setPreviewFile(f)}
+                    onRename={(f) => setRenameFileTarget(f)}
+                    onShare={(f) => setShareModalTarget({ item: f, itemType: 'file' })}
+                    onMove={(f) => setMoveTarget({ item: f, itemType: 'file' })}
+                    isDownloading={downloadingId === file._id}
+                    isDeleting={deletingId === file._id}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -783,6 +1697,7 @@ export default function Dashboard() {
         {/* Table header — shared with FileList */}
         <div className="filelist-header">
           <span className="filelist-th filelist-th-name">Name</span>
+          <span className="filelist-th filelist-th-owner">Owner</span>
           <span className="filelist-th filelist-th-type">Type</span>
           <span className="filelist-th filelist-th-size">Size</span>
           <span className="filelist-th filelist-th-date">Date added</span>
@@ -797,6 +1712,9 @@ export default function Dashboard() {
               onOpen={handleOpenFolder}
               onRename={setRenameFolderTarget}
               onDelete={setDeleteFolderTarget}
+              onShare={(f) => setShareModalTarget({ item: f, itemType: 'folder' })}
+              onMove={(f) => setMoveTarget({ item: f, itemType: 'folder' })}
+              onLeave={(f) => handleLeaveShare(f, 'folder')}
               onDropItem={handleDropItemOnFolder}
             />
           ))}
@@ -811,6 +1729,324 @@ export default function Dashboard() {
               onDownload={handleDownload}
               onDelete={setDeleteConfirmFile}
               onRename={setRenameFileTarget}
+              onShare={(f) => setShareModalTarget({ item: f, itemType: 'file' })}
+              onMove={(f) => setMoveTarget({ item: f, itemType: 'file' })}
+              onLeave={(f) => handleLeaveShare(f, 'file')}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render Shared with me content ─────────────────────────────────────────────
+  function renderSharedWithMe() {
+    const isFirstLoad = currentSharedFolderId !== null
+      ? sharedFolderLoading && !sharedFolderInitialized
+      : sharedWithMeLoading && !sharedWithMeInitialized;
+    const error = currentSharedFolderId !== null ? sharedFolderError : sharedWithMeError;
+
+    if (isFirstLoad) {
+      return (
+        <div className="filelist-status">
+          <div className="filelist-spinner" />
+          <p className="filelist-status-text">Loading...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="filelist-status">
+          <p className="filelist-status-text filelist-status-error">{error}</p>
+          <button
+            className="filelist-retry-btn"
+            onClick={currentSharedFolderId !== null ? fetchSharedFolderContents : fetchSharedWithMe}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    const isEmpty = sharedWithMeFilteredFolders.length === 0 && sharedWithMeFilteredFiles.length === 0;
+    if (isEmpty) {
+      if (searchQuery.trim()) {
+        return (
+          <div className="empty-state">
+            <div className="empty-state-content">
+              <div className="empty-state-icon-wrap">
+                <Users size={36} strokeWidth={1.5} style={{ color: '#6e7076' }} />
+              </div>
+              <p className="empty-state-title">No matching files or folders</p>
+              <p className="empty-state-desc">No shared items matched "{searchQuery.trim()}".</p>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="empty-state">
+          <div className="empty-state-content">
+            <div className="empty-state-icon-wrap">
+              <Users size={36} strokeWidth={1.5} style={{ color: '#6e7076' }} />
+            </div>
+            <p className="empty-state-title">
+              {currentSharedFolderId !== null ? 'Empty folder' : 'No items shared with you'}
+            </p>
+            <p className="empty-state-desc">
+              {currentSharedFolderId !== null
+                ? 'This folder is empty.'
+                : 'Files and folders others share with you will appear here.'}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (viewMode === 'grid') {
+      return (
+        <div className="dash-grid-container">
+          {sharedWithMeFilteredFolders.length > 0 && (
+            <div className="dash-grid-section">
+              <h3 className="dash-section-title">Folders</h3>
+              <div className="dash-grid-folders">
+                {sharedWithMeFilteredFolders.map((folder) => (
+                  <FolderCard
+                    key={folder._id}
+                    folder={folder}
+                    onOpen={handleOpenSharedFolder}
+                    onRename={setRenameFolderTarget}
+                    onDelete={setDeleteFolderTarget}
+                    onShare={(f) => setShareModalTarget({ item: f, itemType: 'folder' })}
+                    onMove={currentSharedFolderId !== null ? (f) => setMoveTarget({ item: f, itemType: 'folder' }) : undefined}
+                    onLeave={(f) => handleLeaveShare(f, 'folder')}
+                    sharedView="with-me"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {sharedWithMeFilteredFiles.length > 0 && (
+            <div className="dash-grid-section">
+              <h3 className="dash-section-title">Files</h3>
+              <div className="dash-grid-files">
+                {sharedWithMeFilteredFiles.map((file) => (
+                  <FileCard
+                    key={file._id}
+                    file={file}
+                    onDownload={handleDownload}
+                    onDelete={(f) => setDeleteConfirmFile(f)}
+                    onPreview={(f) => setPreviewFile(f)}
+                    onRename={(f) => setRenameFileTarget(f)}
+                    onShare={(f) => setShareModalTarget({ item: f, itemType: 'file' })}
+                    onMove={currentSharedFolderId !== null ? (f) => setMoveTarget({ item: f, itemType: 'file' }) : undefined}
+                    onLeave={(f) => handleLeaveShare(f, 'file')}
+                    sharedView="with-me"
+                    isDownloading={downloadingId === file._id}
+                    isDeleting={deletingId === file._id}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="filelist-container">
+        <div className="filelist-header filelist-header--with-me">
+          <span className="filelist-th filelist-th-name">Name</span>
+          <span className="filelist-th filelist-th-shared-by">Shared by</span>
+          <span className="filelist-th filelist-th-role">Permission</span>
+          <span className="filelist-th filelist-th-date">Date shared</span>
+          <span className="filelist-th filelist-th-actions" aria-hidden="true" />
+        </div>
+        <div className="filelist-rows" role="table">
+          {sharedWithMeFilteredFolders.map((folder) => (
+            <FolderRow
+              key={folder._id}
+              folder={folder}
+              onOpen={handleOpenSharedFolder}
+              onRename={setRenameFolderTarget}
+              onDelete={setDeleteFolderTarget}
+              onShare={(f) => setShareModalTarget({ item: f, itemType: 'folder' })}
+              onMove={currentSharedFolderId !== null ? (f) => setMoveTarget({ item: f, itemType: 'folder' }) : undefined}
+              onLeave={(f) => handleLeaveShare(f, 'folder')}
+              sharedView="with-me"
+            />
+          ))}
+          {sharedWithMeFilteredFiles.map((file) => (
+            <FolderViewFileRow
+              key={file._id}
+              file={file}
+              isDownloading={downloadingId === file._id}
+              isDeleting={deletingId === file._id}
+              onPreview={setPreviewFile}
+              onDownload={handleDownload}
+              onDelete={setDeleteConfirmFile}
+              onRename={setRenameFileTarget}
+              onShare={(f) => setShareModalTarget({ item: f, itemType: 'file' })}
+              onMove={currentSharedFolderId !== null ? (f) => setMoveTarget({ item: f, itemType: 'file' }) : undefined}
+              onLeave={(f) => handleLeaveShare(f, 'file')}
+              sharedView="with-me"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render Shared by me content ───────────────────────────────────────────────
+  function renderSharedByMe() {
+    const isFirstLoad = currentSharedByMeFolderId !== null
+      ? sharedByMeFolderLoading && !sharedByMeFolderInitialized
+      : sharedByMeLoading && !sharedByMeInitialized;
+    const error = currentSharedByMeFolderId !== null ? sharedByMeFolderError : sharedByMeError;
+
+    if (isFirstLoad) {
+      return (
+        <div className="filelist-status">
+          <div className="filelist-spinner" />
+          <p className="filelist-status-text">Loading...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="filelist-status">
+          <p className="filelist-status-text filelist-status-error">{error}</p>
+          <button
+            className="filelist-retry-btn"
+            onClick={currentSharedByMeFolderId !== null ? fetchSharedByMeFolderContents : fetchSharedByMe}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    const isEmpty = sharedByMeFilteredFolders.length === 0 && sharedByMeFilteredFiles.length === 0;
+    if (isEmpty) {
+      if (searchQuery.trim()) {
+        return (
+          <div className="empty-state">
+            <div className="empty-state-content">
+              <div className="empty-state-icon-wrap">
+                <Share2 size={36} strokeWidth={1.5} style={{ color: '#6e7076' }} />
+              </div>
+              <p className="empty-state-title">No matching files or folders</p>
+              <p className="empty-state-desc">No shared items matched "{searchQuery.trim()}".</p>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="empty-state">
+          <div className="empty-state-content">
+            <div className="empty-state-icon-wrap">
+              <Share2 size={36} strokeWidth={1.5} style={{ color: '#6e7076' }} />
+            </div>
+            <p className="empty-state-title">
+              {currentSharedByMeFolderId !== null ? 'Empty folder' : "You haven't shared anything yet"}
+            </p>
+            <p className="empty-state-desc">
+              {currentSharedByMeFolderId !== null
+                ? 'This folder is empty.'
+                : 'Items you share with others will appear here.'}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (viewMode === 'grid') {
+      return (
+        <div className="dash-grid-container">
+          {sharedByMeFilteredFolders.length > 0 && (
+            <div className="dash-grid-section">
+              <h3 className="dash-section-title">Folders</h3>
+              <div className="dash-grid-folders">
+                {sharedByMeFilteredFolders.map((folder) => (
+                  <FolderCard
+                    key={folder._id}
+                    folder={folder}
+                    onOpen={handleOpenSharedByMeFolder}
+                    onRename={setRenameFolderTarget}
+                    onDelete={setDeleteFolderTarget}
+                    onShare={(f) => setShareModalTarget({ item: f, itemType: 'folder' })}
+                    onMove={currentSharedByMeFolderId !== null ? (f) => setMoveTarget({ item: f, itemType: 'folder' }) : undefined}
+                    sharedView="by-me"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {sharedByMeFilteredFiles.length > 0 && (
+            <div className="dash-grid-section">
+              <h3 className="dash-section-title">Files</h3>
+              <div className="dash-grid-files">
+                {sharedByMeFilteredFiles.map((file) => (
+                  <FileCard
+                    key={file._id}
+                    file={file}
+                    onDownload={handleDownload}
+                    onDelete={(f) => setDeleteConfirmFile(f)}
+                    onPreview={(f) => setPreviewFile(f)}
+                    onRename={(f) => setRenameFileTarget(f)}
+                    onShare={(f) => setShareModalTarget({ item: f, itemType: 'file' })}
+                    onMove={currentSharedByMeFolderId !== null ? (f) => setMoveTarget({ item: f, itemType: 'file' }) : undefined}
+                    sharedView="by-me"
+                    isDownloading={downloadingId === file._id}
+                    isDeleting={deletingId === file._id}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="filelist-container">
+        <div className="filelist-header filelist-header--by-me">
+          <span className="filelist-th filelist-th-name">Name</span>
+          <span className="filelist-th filelist-th-shared-with">Shared with</span>
+          <span className="filelist-th filelist-th-date">Date shared</span>
+          <span className="filelist-th filelist-th-actions" aria-hidden="true" />
+        </div>
+        <div className="filelist-rows" role="table">
+          {sharedByMeFilteredFolders.map((folder) => (
+            <FolderRow
+              key={folder._id}
+              folder={folder}
+              onOpen={handleOpenSharedByMeFolder}
+              onRename={setRenameFolderTarget}
+              onDelete={setDeleteFolderTarget}
+              onShare={(f) => setShareModalTarget({ item: f, itemType: 'folder' })}
+              onMove={currentSharedByMeFolderId !== null ? (f) => setMoveTarget({ item: f, itemType: 'folder' }) : undefined}
+              sharedView="by-me"
+            />
+          ))}
+          {sharedByMeFilteredFiles.map((file) => (
+            <FolderViewFileRow
+              key={file._id}
+              file={file}
+              isDownloading={downloadingId === file._id}
+              isDeleting={deletingId === file._id}
+              onPreview={setPreviewFile}
+              onDownload={handleDownload}
+              onDelete={setDeleteConfirmFile}
+              onRename={setRenameFileTarget}
+              onShare={(f) => setShareModalTarget({ item: f, itemType: 'file' })}
+              onMove={currentSharedByMeFolderId !== null ? (f) => setMoveTarget({ item: f, itemType: 'file' }) : undefined}
+              sharedView="by-me"
             />
           ))}
         </div>
@@ -831,14 +2067,16 @@ export default function Dashboard() {
 
       {/* Main Container */}
       <div className="dash-body">
-        {/* Left Sidebar 176px (desktop) / Drawer (mobile) */}
+        {/* Left Sidebar 194px (desktop) / Drawer (mobile) */}
         <Sidebar
           files={allFiles}
           categoryCounts={categoryCounts}
           rootCounts={rootCounts}
+          sharedWithMeCount={sharedWithMeFolders.length + sharedWithMeFiles.length}
+          sharedByMeCount={sharedByMeFolders.length + sharedByMeFiles.length}
           activeSection={activeSection}
           onSectionChange={(sec) => {
-            setActiveSection(sec);
+            handleSectionChange(sec);
             setMobileMenuOpen(false);
           }}
           activeCategory={activeCategory}
@@ -884,6 +2122,18 @@ export default function Dashboard() {
                       onNavigate={handleBreadcrumbNavigate}
                       onDropItem={handleDropItemOnFolder}
                     />
+                  ) : isSharedWithMeView ? (
+                    <FolderBreadcrumb
+                      breadcrumbs={sharedBreadcrumbs}
+                      onNavigate={handleSharedBreadcrumbNavigate}
+                      onDropItem={null}
+                    />
+                  ) : isSharedByMeView ? (
+                    <FolderBreadcrumb
+                      breadcrumbs={sharedByMeBreadcrumbs}
+                      onNavigate={handleSharedByMeBreadcrumbNavigate}
+                      onDropItem={null}
+                    />
                   ) : (
                     <nav className="folder-breadcrumb" aria-label="Category view">
                       <div className="folder-breadcrumb-container">
@@ -894,102 +2144,100 @@ export default function Dashboard() {
                       </div>
                     </nav>
                   )}
-                  {countLabel && <span className="dash-count-inline">{countLabel}</span>}
+                  {countLabel && (
+                    <span className="dash-count-inline">
+                      {countLabel}
+                    </span>
+                  )}
                 </div>
 
-                {/* Right: Controls (Sort, View toggle, Refresh) + CTAs (New folder, Upload file) */}
+                {/* Right: Controls in exact order matching design: View toggle, Sort, New folder, Upload file */}
                 <div className="dash-toolbar-right">
-                  <div className="dash-toolbar-controls">
-                    {/* Sort dropdown */}
-                    <div className="dash-sort-container" ref={sortRef}>
-                      <button
-                        className="dash-sort-btn"
-                        onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
-                        aria-expanded={sortDropdownOpen}
-                        aria-label="Sort files"
-                      >
-                        <span>{currentSortLabel}</span>
-                        <ChevronDown size={15} strokeWidth={1.5} className="dash-sort-chevron" />
-                      </button>
-
-                      {sortDropdownOpen && (
-                        <div className="dash-sort-menu" role="menu">
-                          {SORT_OPTIONS.map((opt) => (
-                            <button
-                              key={opt.id}
-                              className={`dash-sort-item ${sortBy === opt.id ? 'dash-sort-item--active' : ''}`}
-                              onClick={() => {
-                                setSortBy(opt.id);
-                                setSortDropdownOpen(false);
-                              }}
-                              role="menuitem"
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* View mode toggle */}
-                    <div className="dash-view-toggle">
-                      <button
-                        className={`dash-view-btn ${viewMode === 'list' ? 'dash-view-btn--active' : ''}`}
-                        onClick={() => setViewMode('list')}
-                        title="List view"
-                        aria-label="List view"
-                      >
-                        <List size={16} strokeWidth={1.5} />
-                      </button>
-                      <button
-                        className={`dash-view-btn ${viewMode === 'grid' ? 'dash-view-btn--active' : ''}`}
-                        onClick={() => setViewMode('grid')}
-                        title="Grid view"
-                        aria-label="Grid view"
-                      >
-                        <LayoutGrid size={16} strokeWidth={1.5} />
-                      </button>
-                    </div>
-
-                    {/* Refresh button */}
+                  {/* View mode toggle */}
+                  <div className="dash-view-toggle">
+                    <div
+                      className={`dash-view-indicator dash-view-indicator--${viewMode}`}
+                      aria-hidden="true"
+                    />
                     <button
-                      className="dash-refresh-btn"
-                      onClick={isMyFilesView ? handleContentsRefresh : fetchAllFiles}
-                      title="Refresh"
-                      aria-label="Refresh"
+                      type="button"
+                      className={`dash-view-btn ${viewMode === 'list' ? 'dash-view-btn--active' : ''}`}
+                      onClick={() => setViewMode('list')}
+                      title="List view"
+                      aria-label="List view"
                     >
-                      <RefreshCw size={15} strokeWidth={1.5} />
+                      <List size={16} strokeWidth={1.5} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`dash-view-btn ${viewMode === 'grid' ? 'dash-view-btn--active' : ''}`}
+                      onClick={() => setViewMode('grid')}
+                      title="Grid view"
+                      aria-label="Grid view"
+                    >
+                      <LayoutGrid size={16} strokeWidth={1.5} />
                     </button>
                   </div>
 
-                  <div className="dash-toolbar-ctas">
-                    {/* Create folder button — only in My Files */}
-                    {isMyFilesView && (
-                      <button
-                        className="dash-new-folder-btn"
-                        onClick={() => setCreateFolderOpen(true)}
-                        title="New folder"
-                        aria-label="New folder"
-                      >
-                        <FolderPlus size={15} strokeWidth={1.5} />
-                        <span>New folder</span>
-                      </button>
+                  {/* Sort dropdown */}
+                  <div className="dash-sort-container" ref={sortRef}>
+                    <button
+                      className="dash-sort-btn"
+                      onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                      aria-expanded={sortDropdownOpen}
+                      aria-label="Sort files"
+                    >
+                      <span>{currentSortLabel}</span>
+                      <ChevronDown size={14} strokeWidth={1.5} className="dash-sort-chevron" />
+                    </button>
+
+                    {sortDropdownOpen && (
+                      <div className="dash-sort-menu" role="menu">
+                        {SORT_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.id}
+                            className={`dash-sort-item ${sortBy === opt.id ? 'dash-sort-item--active' : ''}`}
+                            onClick={() => {
+                              setSortBy(opt.id);
+                              setSortDropdownOpen(false);
+                            }}
+                            role="menuitem"
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
                     )}
+                  </div>
 
-                    {/* Hidden file input for native file browsing */}
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      style={{ display: 'none' }}
-                      multiple
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files.length > 0) {
-                          handleFilesUpload(e.target.files);
-                        }
-                      }}
-                    />
+                  {/* Create folder button — shown in My Files or inside a folder in Shared by me */}
+                  {(isMyFilesView || (isSharedByMeView && currentSharedByMeFolderId !== null)) && (
+                    <button
+                      className="dash-new-folder-btn"
+                      onClick={() => setCreateFolderOpen(true)}
+                      title="New folder"
+                      aria-label="New folder"
+                    >
+                      <SquarePlus size={16} strokeWidth={1.5} />
+                      <span>New folder</span>
+                    </button>
+                  )}
 
-                    {/* Upload file button — triggers native file browser directly */}
+                  {/* Hidden file input for native file browsing */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    multiple
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        handleFilesUpload(e.target.files);
+                      }
+                    }}
+                  />
+
+                  {/* Upload file button — shown in My Files or inside a shared folder where user is editor/owner */}
+                  {(isMyFilesView || (isSharedWithMeView && currentSharedFolderId !== null && currentSharedFolderPermission === 'editor') || (isSharedByMeView && currentSharedByMeFolderId !== null)) && (
                     <button
                       className={`dash-upload-btn ${isUploading ? 'dash-upload-btn--uploading' : ''}`}
                       onClick={() => fileInputRef.current?.click()}
@@ -1004,49 +2252,68 @@ export default function Dashboard() {
                         </>
                       ) : (
                         <>
-                          <Upload size={15} strokeWidth={1.5} />
+                          <Upload size={15} strokeWidth={1.8} />
                           <span className="dash-upload-btn-text">Upload file</span>
                         </>
                       )}
                     </button>
-                  </div>
+                  )}
                 </div>
               </div>
 
               {/* ── My Files view (folder-aware) ── */}
               {isMyFilesView && renderMyFiles()}
 
+              {/* ── Shared with me view ── */}
+              {isSharedWithMeView && renderSharedWithMe()}
+
+              {/* ── Shared by me view ── */}
+              {isSharedByMeView && renderSharedByMe()}
+
               {/* ── Category filter views (global, not folder-scoped) ── */}
               {isCategoryView && (
-                viewMode === 'grid' && !allFilesLoading ? (
-                  categoryFilteredFiles.length === 0 ? (
-                    <EmptyState />
-                  ) : (
-                    <div className="dash-grid">
-                      {categoryFilteredFiles.map((file) => (
-                        <FileCard
-                          key={file._id}
-                          file={file}
-                          onDownload={handleDownload}
-                          onDelete={(f) => setDeleteConfirmFile(f)}
-                          onPreview={(f) => setPreviewFile(f)}
-                          onRename={(f) => setRenameFileTarget(f)}
-                          isDownloading={downloadingId === file._id}
-                          isDeleting={deletingId === file._id}
-                        />
-                      ))}
+                !allFilesInitialized ? (
+                  <div className="filelist-status">
+                    <div className="filelist-spinner" />
+                    <p className="filelist-status-text">Loading files...</p>
+                  </div>
+                ) : categoryFilteredFiles.length === 0 ? (
+                  <EmptyState />
+                ) : viewMode === 'grid' ? (
+                  <div className="dash-grid-container">
+                    <div className="dash-grid-section">
+                      <div className="dash-grid-files">
+                        {categoryFilteredFiles.map((file) => (
+                          <FileCard
+                            key={file._id}
+                            file={file}
+                            onDownload={handleDownload}
+                            onDelete={(f) => setDeleteConfirmFile(f)}
+                            onPreview={(f) => setPreviewFile(f)}
+                            onRename={(f) => setRenameFileTarget(f)}
+                            onShare={(f) => setShareModalTarget({ item: f, itemType: 'file' })}
+                            onMove={(f) => setMoveTarget({ item: f, itemType: 'file' })}
+                            onLeave={(f) => handleLeaveShare(f, 'file')}
+                            isDownloading={downloadingId === file._id}
+                            isDeleting={deletingId === file._id}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  )
+                  </div>
                 ) : (
                   <FileList
                     files={categoryFilteredFiles}
-                    loading={allFilesLoading}
+                    loading={false}
                     error=""
                     onRefresh={fetchAllFiles}
                     onDownload={handleDownload}
                     onDelete={(f) => setDeleteConfirmFile(f)}
                     onPreview={(f) => setPreviewFile(f)}
                     onRename={(f) => setRenameFileTarget(f)}
+                    onShare={(f) => setShareModalTarget({ item: f, itemType: 'file' })}
+                    onMove={(f) => setMoveTarget({ item: f, itemType: 'file' })}
+                    onLeave={(f) => handleLeaveShare(f, 'file')}
                     downloadingId={downloadingId}
                     deletingId={deletingId}
                   />
@@ -1072,11 +2339,35 @@ export default function Dashboard() {
       {/* Create Folder Modal */}
       <CreateFolderModal
         isOpen={createFolderOpen}
-        parentId={currentFolderId}
+        parentId={isSharedByMeView ? currentSharedByMeFolderId : currentFolderId}
         onClose={() => setCreateFolderOpen(false)}
-        onSuccess={() => {
-          handleContentsRefresh();
+        onSuccess={(newFolder) => {
           showNotification('Folder created!');
+          // Optimistic: insert the new folder at the top of the current list
+          if (newFolder?._id) {
+            const folder = {
+              ...newFolder,
+              createdAt: newFolder.createdAt || new Date().toISOString(),
+              owner: (newFolder.owner && typeof newFolder.owner === 'object' && (newFolder.owner.name || newFolder.owner.email))
+                ? newFolder.owner
+                : {
+                    _id: currentUser?._id,
+                    name: currentUser?.name,
+                    email: currentUser?.email,
+                    avatar: currentUser?.avatar || null,
+                  },
+            };
+            if (isSharedByMeView && currentSharedByMeFolderId) {
+              setSharedByMeFolderContents((prev) => ({ ...prev, folders: [folder, ...prev.folders] }));
+            } else if (isSharedByMeView) {
+              setSharedByMeFolders((prev) => [folder, ...prev]);
+            } else {
+              setFolderFolders((prev) => [folder, ...prev]);
+            }
+            setRootCounts((prev) => (currentFolderId === null ? { ...prev, folders: prev.folders + 1 } : prev));
+          }
+          // Background reconcile
+          handleContentsRefresh();
         }}
       />
 
@@ -1085,9 +2376,24 @@ export default function Dashboard() {
         isOpen={Boolean(renameFolderTarget)}
         folder={renameFolderTarget}
         onClose={() => setRenameFolderTarget(null)}
-        onSuccess={() => {
-          handleContentsRefresh();
+        onSuccess={(updatedFolder) => {
           showNotification('Folder renamed!');
+          const fid = renameFolderTarget?._id;
+          const newName = updatedFolder?.name;
+          if (fid && newName) {
+            const patchFolders = (arr) =>
+              arr.map((f) => (f._id === fid ? { ...f, name: newName } : f));
+            setFolderFolders(patchFolders);
+            setSharedByMeFolders(patchFolders);
+            setSharedWithMeFolders(patchFolders);
+            setSharedFolderContents((prev) => ({ ...prev, folders: patchFolders(prev.folders) }));
+            setSharedByMeFolderContents((prev) => ({ ...prev, folders: patchFolders(prev.folders) }));
+            // Also patch breadcrumb label if we renamed the currently-open folder
+            setBreadcrumbs((prev) => prev.map((b) => (b.id === fid ? { ...b, name: newName } : b)));
+            setSharedBreadcrumbs((prev) => prev.map((b) => (b.id === fid ? { ...b, name: newName } : b)));
+            setSharedByMeBreadcrumbs((prev) => prev.map((b) => (b.id === fid ? { ...b, name: newName } : b)));
+          }
+          handleContentsRefresh();
         }}
       />
 
@@ -1097,12 +2403,59 @@ export default function Dashboard() {
         folder={deleteFolderTarget}
         onClose={() => setDeleteFolderTarget(null)}
         onSuccess={() => {
+          showNotification('Folder deleted.');
+          const fid = deleteFolderTarget?._id;
+          // Optimistic: remove folder from all lists immediately
+          if (fid) {
+            const removeFolder = (arr) => arr.filter((f) => f._id !== fid);
+            setFolderFolders(removeFolder);
+            setSharedByMeFolders(removeFolder);
+            setSharedWithMeFolders(removeFolder);
+            setSharedFolderContents((prev) => ({ ...prev, folders: removeFolder(prev.folders) }));
+            setSharedByMeFolderContents((prev) => ({ ...prev, folders: removeFolder(prev.folders) }));
+            setRootCounts((prev) => ({ ...prev, folders: Math.max(0, prev.folders - 1) }));
+          }
           // If we deleted a folder we were browsing INTO, go up one level
-          if (deleteFolderTarget?._id === currentFolderId) {
+          if (fid === currentFolderId) {
             setBreadcrumbs((prev) => prev.slice(0, -1));
           }
+          if (fid === currentSharedFolderId) {
+            setSharedBreadcrumbs((prev) => prev.slice(0, -1));
+          }
+          if (fid === currentSharedByMeFolderId) {
+            setSharedByMeBreadcrumbs((prev) => prev.slice(0, -1));
+          }
           handleContentsRefresh();
-          showNotification('Folder deleted.');
+        }}
+      />
+
+      {/* Move File / Folder Modal */}
+      <MoveFileModal
+        isOpen={Boolean(moveTarget)}
+        item={moveTarget?.item}
+        itemType={moveTarget?.itemType || 'file'}
+        currentFolderId={currentSharedByMeFolderId || currentSharedFolderId || currentFolderId}
+        sharedRootFolder={null}
+        onClose={() => setMoveTarget(null)}
+        onSuccess={() => {
+          showNotification(
+            `Moved ${moveTarget?.itemType === 'folder' ? 'folder' : 'file'} successfully!`
+          );
+          const mid = moveTarget?.item?._id;
+          // Optimistic: remove moved item from the current view
+          if (mid) {
+            if (moveTarget?.itemType === 'folder') {
+              setFolderFolders((prev) => prev.filter((f) => f._id !== mid));
+              setSharedFolderContents((prev) => ({ ...prev, folders: prev.folders.filter((f) => f._id !== mid) }));
+              setSharedByMeFolderContents((prev) => ({ ...prev, folders: prev.folders.filter((f) => f._id !== mid) }));
+            } else {
+              setFolderFiles((prev) => prev.filter((f) => f._id !== mid));
+              setSharedFolderContents((prev) => ({ ...prev, files: prev.files.filter((f) => f._id !== mid) }));
+              setSharedByMeFolderContents((prev) => ({ ...prev, files: prev.files.filter((f) => f._id !== mid) }));
+            }
+          }
+          setMoveTarget(null);
+          handleContentsRefresh();
         }}
       />
 
@@ -1111,9 +2464,21 @@ export default function Dashboard() {
         isOpen={Boolean(renameFileTarget)}
         file={renameFileTarget}
         onClose={() => setRenameFileTarget(null)}
-        onSuccess={() => {
+        onSuccess={(updatedFile) => {
+          showNotification('File renamed successfully!');
+          const fid = renameFileTarget?._id;
+          const newName = updatedFile?.originalName || updatedFile?.name;
+          if (fid && newName) {
+            const patchFiles = (arr) =>
+              arr.map((f) => (f._id === fid ? { ...f, originalName: newName } : f));
+            setFolderFiles(patchFiles);
+            setAllFiles(patchFiles);
+            setSharedWithMeFiles(patchFiles);
+            setSharedByMeFiles(patchFiles);
+            setSharedFolderContents((prev) => ({ ...prev, files: patchFiles(prev.files) }));
+            setSharedByMeFolderContents((prev) => ({ ...prev, files: patchFiles(prev.files) }));
+          }
           handleContentsRefresh();
-          showNotification(`File renamed successfully!`);
         }}
       />
 
@@ -1124,6 +2489,13 @@ export default function Dashboard() {
         onClose={() => setPreviewFile(null)}
         onDownload={handleDownload}
         onDelete={(f) => setDeleteConfirmFile(f)}
+        onAccessRevoked={() => {
+          setPreviewFile(null);
+          handleSectionChange('shared-with-me');
+          setSharedBreadcrumbs([{ id: null, name: 'Shared with me' }]);
+          showNotification('You no longer have access to this item.', 'error');
+          fetchSharedWithMe();
+        }}
         isDownloading={downloadingId === previewFile?._id}
         isDeleting={deletingId === previewFile?._id}
       />
@@ -1135,6 +2507,19 @@ export default function Dashboard() {
         onClose={() => setDeleteConfirmFile(null)}
         onConfirm={handleDeleteConfirm}
         isDeleting={deletingId === deleteConfirmFile?._id}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={Boolean(shareModalTarget)}
+        item={shareModalTarget?.item}
+        itemType={shareModalTarget?.itemType || 'file'}
+        onClose={() => setShareModalTarget(null)}
+        onChanged={() => {
+          fetchSharedByMe();
+          fetchSharedWithMe();
+          handleContentsRefresh();
+        }}
       />
 
       {/* User Settings Modal */}

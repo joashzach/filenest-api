@@ -7,6 +7,8 @@ import {
   MoreHorizontal,
   Database,
   X,
+  Users,
+  Share2,
 } from 'lucide-react';
 import { formatStorageSize } from '../utils/fileUtils';
 import './Sidebar.css';
@@ -20,12 +22,14 @@ const NAV_CATEGORIES = [
 ];
 
 /**
- * Sidebar — 176px flat sidebar on desktop, off-canvas drawer on mobile
+ * Sidebar — 194px flat sidebar on desktop, off-canvas drawer on mobile
  */
 export default function Sidebar({
   files = [],
   categoryCounts = {},
   rootCounts = { folders: 0, files: 0 },
+  sharedWithMeCount = 0,
+  sharedByMeCount = 0,
   activeSection = 'files',
   onSectionChange,
   activeCategory = 'all',
@@ -70,6 +74,8 @@ export default function Sidebar({
     rootTooltipParts.push(`${rootFiles} ${rootFiles === 1 ? 'file' : 'files'}`);
   }
   const rootTooltip = rootTooltipParts.join(', ') || undefined;
+
+  const hasSharedCounts = (sharedWithMeCount || 0) > 0 || (sharedByMeCount || 0) > 0;
 
   return (
     <>
@@ -124,6 +130,40 @@ export default function Sidebar({
               </button>
             );
           })}
+        </nav>
+
+        {/* Shared Section */}
+        <div className="sidebar-section-label" style={{ marginTop: '16px' }}>Shared</div>
+
+        <nav className="sidebar-nav">
+          <button
+            type="button"
+            className={`sidebar-nav-item ${activeSection === 'shared-with-me' ? 'sidebar-nav-item--active' : ''}`}
+            onClick={() => {
+              if (onSectionChange) onSectionChange('shared-with-me');
+              if (onClose) onClose();
+            }}
+          >
+            <Users size={17} strokeWidth={1.5} className="sidebar-item-icon" />
+            <span className="sidebar-item-label">Shared with me</span>
+            {hasSharedCounts && (
+              <span className="sidebar-item-count">{sharedWithMeCount || 0}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            className={`sidebar-nav-item ${activeSection === 'shared-by-me' ? 'sidebar-nav-item--active' : ''}`}
+            onClick={() => {
+              if (onSectionChange) onSectionChange('shared-by-me');
+              if (onClose) onClose();
+            }}
+          >
+            <Share2 size={17} strokeWidth={1.5} className="sidebar-item-icon" />
+            <span className="sidebar-item-label">Shared by me</span>
+            {hasSharedCounts && (
+              <span className="sidebar-item-count">{sharedByMeCount || 0}</span>
+            )}
+          </button>
         </nav>
 
         {/* Pinned to bottom under hairline */}

@@ -77,3 +77,34 @@ exports.deleteMe = catchAsync(async (req, res, next) => {
     message: "User deleted successfully!",
   });
 });
+
+// LOOKUP USER BY EMAIL
+// Resolves a single exact email to { _id, name, email }.
+// Does NOT support partial search — only exact match.
+// Auth required (caller must be signed in).
+exports.lookupUserByEmail = catchAsync(async (req, res, next) => {
+  const raw = req.body.email;
+
+  if (typeof raw !== "string" || !raw.trim()) {
+    return next(new apiError("Email is required", 400));
+  }
+
+  const email = raw.trim().toLowerCase();
+
+  const user = await User.findOne({ email }).select("_id name email avatar");
+
+  if (!user) {
+    return next(new apiError("No user found with that email", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar || null,
+    },
+  });
+});
+
